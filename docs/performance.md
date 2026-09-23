@@ -79,6 +79,35 @@ The checkpoint, heads, and gate were frozen before the **one-time locked-test co
 
 The paired ECE-difference 95% intervals were `[-0.00232, 0.00324]` and `[-0.00607, 0.00975]`; both include zero. Every requested question was scored, with no rejection or truncation. The locked sets were not used to change the model or gate.
 
+## One-pass prefix and bounded allocator
+
+For one question, the plain packed scorer captures the Gated DeltaNet prefix
+while it scores all options. It no longer makes a separate prefix pass. On one
+fixed local 2048 request, 30 timed repetitions after five warmups gave a
+complete cold decision median of **60.11 ms**, versus **106.62 ms** for stock
+Kev MLX (**1.77×**). The cached medians were **51.99 and 53.90 ms**; the cached
+gain is small. Choices matched and the maximum probability difference was
+0.000048 on that request. Across 32 development checks, there were no choice
+flips and maximum probability difference was 0.000535. This path applies to
+the plain one-question packed scorer; it does not accelerate the early-exit
+path. See [one-pass evidence](../evidence/runtime-memory-prefix-9e88910.json).
+
+The loader releases temporary allocation buffers after it loads the same 426
+backbone tensors. All tensor hashes matched. In that run, ready process RSS
+fell from **19.011 to 8.684 GiB** and MLX startup active peak fell from
+**17.072 to 8.371 GiB**. This changes allocation, not checkpoint weights.
+
+The dedicated server also caps retained reusable MLX buffers at **1 GiB**.
+On 60 identical local chess positions, with direct chess.js moves in the
+timing boundary, stock Kev completed **4.345 actions/s** and capped Nerqova
+completed **7.115 actions/s** (**1.638×**). All choices matched; maximum
+probability difference was 0.0001. Nerqova's uncapped run reached 22.18 GiB
+of reusable buffers at the end; the capped run ended at 1.024 GiB. One
+sequential block per condition cannot isolate all speed effects of the cap.
+The [allocator evidence](../evidence/runtime-cache-limit-67cb092.json) records
+trace hashes and a fixed five-question HTTP check. Browser drawing was outside
+the chess timing boundary.
+
 ## Rejected probes
 
 The following short M5 Pro probes used the same Kev-4B weights. They are diagnostic, not release benchmarks. Their code paths were removed after the full request failed the gate.

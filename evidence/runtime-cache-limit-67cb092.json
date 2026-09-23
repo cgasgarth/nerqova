@@ -1,0 +1,33 @@
+{
+  "schema": "nerqova-allocator-limit-v1",
+  "code_sha": "67cb092a7b1859ba1f9be2d25da2089c174a9ad9",
+  "scope": "Same released Kev-4B checkpoint on Apple M5 Pro; cap MLX reusable allocator buffers at 1 GiB in the dedicated Nerqova server. 60 same-position chess choices; 30 fixed five-question HTTP requests after five warmups. Games update directly; browser rendering is outside timing.",
+  "http_five_question": {
+    "cold_p50_ms": 183.58,
+    "cached_p50_ms": 74.95,
+    "checkpoint_revision": "485ace8703592fcf405488b262449990824cfed1",
+    "report_sha256": "b3646be491903f115f09117d064c79446d6bca1a2bdf610a646153616c6f982a"
+  },
+  "chess_same_positions": {
+    "count": 60,
+    "stock_actions_per_second": 4.345,
+    "nerqova_uncapped_actions_per_second": 6.43,
+    "nerqova_capped_actions_per_second": 7.115,
+    "stock_to_capped_ratio": 1.638,
+    "capped_vs_uncapped_ratio": 1.107,
+    "capped_choice_flips": 0,
+    "capped_max_probability_delta": 0.0001000000000000445,
+    "stock_trace_sha256": "fef5da7c8173529946e18dcba636ee5aaab7cce95cb949c8600ff134282e9c9a",
+    "uncapped_trace_sha256": "5de3e82e00063e867eb60833611bec972d8793dc58a7577fa0fd88931896cf68",
+    "capped_trace_sha256": "e100a793f8a0529a32f7782a82d66a13fb167bb675c5a45b2bae821f050349be"
+  },
+  "mlx_allocator_chess_end_mib": {
+    "nerqova_uncapped_active": 8745.906,
+    "nerqova_uncapped_cache": 22181.858,
+    "nerqova_capped_active": 8745.781,
+    "nerqova_capped_cache": 1024.163
+  },
+  "loader_and_prefix_evidence": "evidence/runtime-memory-prefix-9e88910.json",
+  "core_evidence_sha256": "69f52fed1bd130174cc6036b37becd5c22de47408782108c3245994b60d6e50e",
+  "limitation": "The chess throughput blocks were sequential, not an interleaved statistical estimate. Capped chess throughput was higher in this run; do not attribute its full difference to the cap without repeats. The allocator cap changes retained reusable buffers, not checkpoint weight size."
+}

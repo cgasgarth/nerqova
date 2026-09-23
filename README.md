@@ -5,7 +5,7 @@ of typed questions, then returns an option probability distribution for each
 question. It uses the released **Kev-4B checkpoint** and the same System One
 HTTP contract as Kev.
 
-The runtime has two speed paths:
+The runtime has three speed paths:
 
 1. **Packed Metal DeltaNet:** a model-specific GPU recurrence assigns eight
    value rows to each SIMD group. It keeps the checkpoint weights and matches
@@ -14,6 +14,9 @@ The runtime has two speed paths:
    question stop before all 32 layers. The layer-16 choice must have calibrated
    confidence, and the layer-8 verifier must agree. Other questions continue
    through the full model and use Kev's original pointer head.
+3. **One-pass prefix capture:** a one-question request saves the recurrent
+   prefix while it scores options. This avoids a second pass through the state.
+   The dedicated server also limits retained MLX reuse buffers to 1 GiB.
 
 Kev scores options in a forward pass, with no answer-token loop. The gain here
 comes from less GPU work per decision and a kernel tuned for this model's
@@ -21,6 +24,20 @@ recurrence. Early-exit probabilities can differ from full Kev probabilities;
 the [model card](models/README.md) explains the gate and quality checks.
 
 ## Performance impact
+
+On a fixed one-question 2048 state, the plain packed scorer with one-pass
+prefix capture cut complete local cold decision time from **106.62 to 60.11 ms**
+(**1.77×**) with the same choice. Cached time was **53.90 versus 51.99 ms**.
+This path uses the released Kev-4B weights and no early exit. Loading also cut
+ready process RSS from about **19.0 to 8.7 GiB** on the measured Mac. The
+[one-pass evidence](evidence/runtime-memory-prefix-9e88910.json) records the
+request, 30 timing samples per condition, weight checks, and limits.
+
+On 60 identical local chess positions, direct game moves and HTTP model calls
+gave **4.34 actions/s** for stock Kev and **7.12 actions/s** for the capped
+Nerqova server (**1.64×**). All choices matched; the maximum probability
+difference was **0.0001**. The retained MLX cache ended near **1.0 GiB**. This
+was one sequential block per engine; see the [allocator evidence](evidence/runtime-cache-limit-67cb092.json).
 
 The [v0.1.0 measurement](docs/performance.md#conditional-exit-candidate) used
 the same Kev-4B checkpoint on an M5 Pro, with 50 timed requests after 10 warmups
