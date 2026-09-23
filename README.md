@@ -4,6 +4,8 @@ A fast, local decision model that serves Kev's typed System One API. This reposi
 
 **Status:** research. No student checkpoint has passed the release quality gate yet. The latency of an untrained architecture is not evidence of decision quality.
 
+See the [performance plan](docs/performance.md) for the speed target, measurements, and the parts of Husky's approach that apply to this one-pass decision workload.
+
 ## What It Does
 
 One state and a set of typed questions go in. Each question gets a probability distribution over its options in one scoring request. The scorer runs a pretrained Qwen3 or Qwen3.5 text backbone with a trained LoRA adapter and pointer head. It reuses a state prefix while keeping question branches isolated. It does not generate an answer token by token.
