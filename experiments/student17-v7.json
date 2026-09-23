@@ -1,0 +1,14 @@
+[
+  {
+    "base": "Qwen/Qwen3-1.7B-Base",
+    "base_revision": "ea980cb0a6c2ae4b936e82123acc929f1cec04c1",
+    "epochs": 2,
+    "lr": 0.00005,
+    "lora": 16,
+    "batch": 1,
+    "accum": 8,
+    "checkpointing": 1,
+    "p_none_pair": 0.25,
+    "seed": 2
+  }
+]
