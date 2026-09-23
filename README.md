@@ -34,10 +34,10 @@ ready process RSS from about **19.0 to 8.7 GiB** on the measured Mac. The
 request, 30 timing samples per condition, weight checks, and limits.
 
 On 60 identical local chess positions, direct game moves and HTTP model calls
-gave **4.34 actions/s** for stock Kev and **7.12 actions/s** for the capped
-Nerqova server (**1.64×**). All choices matched; the maximum probability
-difference was **0.0001**. The retained MLX cache ended near **1.0 GiB**. This
-was one sequential block per engine; see the [allocator evidence](evidence/runtime-cache-limit-67cb092.json).
+gave **5.41 actions/s** for stock Kev and **7.12 actions/s** for Nerqova
+(**1.32×**) when both used the same 1 GiB MLX reuse cap. All choices matched;
+the maximum probability difference was **0.0001**. This was one sequential
+block per engine; see the [local game evidence](evidence/local-games-516d988.json).
 
 The [v0.1.0 measurement](docs/performance.md#conditional-exit-candidate) used
 the same Kev-4B checkpoint on an M5 Pro, with 50 timed requests after 10 warmups

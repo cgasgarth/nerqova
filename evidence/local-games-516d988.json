@@ -1,0 +1,38 @@
+{
+  "schema": "nerqova-local-games-v1",
+  "date": "2026-09-23",
+  "runtime_code_sha": "516d988",
+  "hardware": "Apple M5 Pro, 20 GPU cores, 48 GiB unified memory",
+  "boundary": "One model HTTP request and one direct game engine move per action. Browser drawing and video rendering are outside timing. Run engines sequentially on the same Mac. MLX reusable cache capped at 1 GiB for both Kev and Nerqova in 2048 and chess.",
+  "game_2048": {
+    "source": "gabrielecirulli/2048@478b6ec346e3787f589e4af751378d06ded4cbbc",
+    "seed": 302,
+    "target_tile": 256,
+    "stock": {"moves": 155, "seconds_to_target": 16.648146583, "actions_per_second": 9.31034570288298, "final_active_mib": 8250.404, "final_cache_mib": 785.273, "trace_sha256": "fc462f8da055b22bc543feb5bc704ff283f7bfe8d014daafc4cefce3c13ade42"},
+    "nerqova_experimental_layer8": {"moves": 255, "seconds_to_target": 7.833312916, "actions_per_second": 32.55327633843755, "final_active_mib": 8094.992, "final_cache_mib": 730.226, "trace_sha256": "d9deae39d2311cb7039e2ddc0b2877b88f9519450e40b199bd4beddf5712bdf1"},
+    "time_to_target_speedup": 2.125,
+    "action_rate_speedup": 3.496,
+    "limits": "The Nerqova side uses an experimental 2048-trained layer-8 exit head, not the released verified exit. It made more moves and restarted once before reaching 256. Same PRNG seed and initial board; model choices and later boards can differ."
+  },
+  "chess_same_positions": {
+    "source": "jhlywa/chess.js@1.4.0",
+    "positions": 60,
+    "stock": {"actions_per_second": 5.4084727242354935, "final_active_mib": 8250.529, "final_cache_mib": 1024.04, "trace_sha256": "027f2c7c53ad093200feb8031bdc4692721d79c698287c49b6b4b4c63746a6f9"},
+    "nerqova": {"actions_per_second": 7.115026202028507, "final_active_mib": 8745.781, "final_cache_mib": 1024.163, "trace_sha256": "e100a793f8a0529a32f7782a82d66a13fb167bb675c5a45b2bae821f050349be"},
+    "action_rate_speedup": 1.3155,
+    "choice_flips": 0,
+    "max_probability_delta": 0.0001000000000000445,
+    "limits": "One sequential block per engine; identical pre-recorded 60 chess positions. This is not a repeated confidence interval."
+  },
+  "connect_four": {
+    "source": "boardgameio/boardgame.io@0.50.2",
+    "games": 12,
+    "moves_each": 42,
+    "wins_each": 6,
+    "kev_reference_actions_per_second": 8.1939,
+    "nerqova_actions_per_second": 13.0693,
+    "trace_sha256": "20d4a4e77bc82d7d97df8b4221bbfc267d6d603c063bbe95f3279597f0bab692",
+    "limits": "One shared checkpoint process alternated the Kev-compatible reference and Nerqova packed scoring paths. This is an action-speed demonstration, not a head-to-head strength claim or a separate stock kev.serve measurement. Red won every game; colors swapped each round."
+  },
+  "artifacts": "Raw traces and the rendered video are in ignored runs/ and demo/ local directories."
+}

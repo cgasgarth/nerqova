@@ -108,6 +108,29 @@ The [allocator evidence](../evidence/runtime-cache-limit-67cb092.json) records
 trace hashes and a fixed five-question HTTP check. Browser drawing was outside
 the chess timing boundary.
 
+## Local game action throughput
+
+The [local game record](../evidence/local-games-516d988.json) keeps trace
+hashes for three browser-capable game engines. The timing boundary includes a
+model HTTP request and a direct rules-engine move. Browser drawing and video
+rendering are outside it. Both Kev and Nerqova use a 1 GiB MLX reuse cap in
+the 2048 and chess races; runs are sequential on the same M5 Pro.
+
+| Game | Stock Kev | Nerqova | Result |
+|---|---:|---:|---|
+| 2048, seed 302, first 256 tile | 16.65 s; 9.31 actions/s | 7.83 s; 32.55 actions/s | 2.13× lower time; 3.50× action rate |
+| Chess, same 60 positions and choices | 5.41 actions/s | 7.12 actions/s | 1.32× action rate |
+| Connect Four, 12 games, 42 moves per side | 8.19 actions/s | 13.07 actions/s | 1.59× action rate; six wins each |
+
+The 2048 Nerqova run uses an **experimental task-trained layer-8 exit head**.
+It restarted once and made more moves before reaching 256. Its result is not
+the released gate's performance. The Connect Four match uses one shared
+checkpoint process with a Kev-compatible reference scorer and the packed
+Nerqova scorer; it is not a separate stock `kev.serve` run. Red won every
+game, so the six-six result makes no claim about playing strength. The chess
+race is the direct stock-server, same-input comparison. These are single
+blocks, not repeated confidence intervals.
+
 ## Rejected probes
 
 The following short M5 Pro probes used the same Kev-4B weights. They are diagnostic, not release benchmarks. Their code paths were removed after the full request failed the gate.
