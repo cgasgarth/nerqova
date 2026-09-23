@@ -65,3 +65,61 @@ def test_packed_delta_matches_original_bitwise(batch, tokens):
     actual = packed_kernel(q, k, v, gamma, beta, state)
     mx.eval(expected, actual)
     assert all(bool(mx.array_equal(a, b).item()) for a, b in zip(expected, actual))
+
+
+@pytest.mark.skipif(
+    platform.system() != "Darwin" or platform.machine() != "arm64" or not os.getenv("NERQOVA_TEST_RUN"),
+    reason="requires Apple Silicon and NERQOVA_TEST_RUN",
+)
+def test_early_exit_fallback_preserves_full_logits(tmp_path):
+    import torch
+    from pathlib import Path
+
+    from nerqova.checkpoint import load_model
+    from nerqova.early_head import PairHead
+    from nerqova.early_exit import EarlyExitDecisionModel
+    from nerqova.mlx_model import MLXDecisionModel
+
+    checkpoint, tok, model = load_model(os.environ["NERQOVA_TEST_RUN"], packed_delta=True)
+    rec = {"state": "The customer ordered a blue shirt and received a red shirt.",
+           "questions": [
+               {"instr": "Which color was ordered?", "options": ["Blue", "Red", "Green"], "label": 0},
+               {"instr": "Which color arrived?", "options": ["Blue", "Red"], "label": 1},
+           ]}
+    enc = model.encode(tok, rec)
+    expected = model.forward(enc)
+    head = PairHead()
+    for weight in head.parameters():
+        weight.data.zero_()
+    artifact = tmp_path / "head.pt"
+    torch.save({"head": head.state_dict(), "head_type": "pair", "layer": 8, "temperature": 1.0,
+                "train_manifest": {"checkpoint_revision": Path(checkpoint.path).name}}, artifact)
+    model.__class__ = EarlyExitDecisionModel
+    model.load_exit(artifact, 1.0, Path(checkpoint.path).name)
+    actual, prefix = model.probs_and_prefix(enc)
+    hit = model.probs_with_prefix(enc, prefix)
+    for result in (actual, hit):
+        for logits, probability in zip(expected, result, strict=True):
+            assert float((torch.softmax(logits, -1) - probability).abs().max()) < 1e-5
+    assert prefix["full"]
+
+    # A uniform synthetic head defers the three-option question at 0.4 and
+    # exits the two-option question. This checks cache filtering and order.
+    model.load_exit(artifact, 0.4, Path(checkpoint.path).name)
+    mixed = model.probs(enc)
+    assert model.last_exit_stats == {"questions": 2, "exited": 1, "deferred": 1,
+                                     "verifier_vetoes": 0}
+    # Filtering changes the GEMM batch shape, so allow its small fp drift.
+    assert float((torch.softmax(expected[0], -1) - mixed[0]).abs().max()) < 1e-4
+    assert float((torch.full_like(mixed[1], 0.5) - mixed[1]).abs().max()) < 1e-5
+
+    main_artifact = tmp_path / "head16.pt"
+    torch.save({"head": head.state_dict(), "head_type": "pair", "layer": 16, "temperature": 1.0,
+                "train_manifest": {"checkpoint_revision": Path(checkpoint.path).name}}, main_artifact)
+    model.load_exit(main_artifact, 0.4, Path(checkpoint.path).name)
+    model.load_verifier(artifact, 0.6, Path(checkpoint.path).name)
+    verified = model.probs(enc)
+    assert model.last_exit_stats == {"questions": 2, "exited": 0, "deferred": 2,
+                                     "verifier_vetoes": 1}
+    for logits, probability in zip(expected, verified, strict=True):
+        assert float((torch.softmax(logits, -1) - probability).abs().max()) < 1e-4

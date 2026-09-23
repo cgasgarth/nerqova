@@ -4,6 +4,10 @@ at commit 557598fced1dada75dfbf36ed144dce309ac6ceb.
 
 The original copyright and license terms are preserved in LICENSE.
 
+Nerqova's conditional-exit head weights were trained from frozen Kev suite
+records and probability targets produced by the released Kev-4B checkpoint.
+They do not redistribute the Kev or Qwen backbone weights.
+
 Nerqova's packed Gated DeltaNet kernel and layer path adapt code from Apple's
 MLX-LM project (https://github.com/ml-explore/mlx-lm), merge commit
 e9308d7b0854105386a587db52c2f1a635196165, under the MIT license.

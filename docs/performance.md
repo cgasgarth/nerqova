@@ -43,6 +43,29 @@ At clean commit `601727c`, with 50 repetitions after 10 warmups in a quiet windo
 
 The full [evidence summary](../evidence/packed-metal-601727c.json) records the source, checkpoint, suite hashes, served metrics, coverage, p95 values, and input hashes. An earlier reverse-order local block also showed a gain. This is a real model-specific hardware improvement. It does not meet the 2× target.
 
+## Conditional exit candidate
+
+The two [trained heads](../models/README.md) use the same packed Kev-4B backbone. A layer-16 readout must reach 0.90 confidence; a layer-8 readout must choose the same option and reach a **0.26 confidence margin above uniform chance**. The margin is `(top_probability - 1 / option_count) / (1 - 1 / option_count)`, so questions with different option counts use the same scale. Other questions continue through all 32 layers and use Kev's original pointer head. A mixed-batch fallback test matches the full packed path within `1e-4` probability. This is a model change: early probabilities can differ substantially from full Kev, so quality is checked on held-out records.
+
+On the frozen decision-v7 calibration partition, the gate exited 31.0% of questions and 21.6% of complete requests. It matched full Kev accuracy, had no teacher choice flips among accepted exits, and slightly improved Brier, ECE, and NLL. Neither head saw calibration records during training.
+
+An **exploratory** fixed-request local block and a separate HTTP block used the same 275-token/five-question request. The HTTP new-state block varied the state text to force cache misses:
+
+| Median complete decision | Stock Kev MLX | Conditional Nerqova | Speedup |
+|---|---:|---:|---:|
+| Local, new state | 194.75 ms | 91.91 ms | 2.119× |
+| Local, cached state | 78.92 ms | 37.70 ms | 2.093× |
+| HTTP, new state | 196.13 ms | 94.84 ms | 2.068× |
+| HTTP, cached state | 80.21 ms | 39.55 ms | 2.028× |
+
+All five final choices matched. These exploratory runs cross code revisions and include a dirty checkout, so they are not a release speed claim. Three of 50 cold HTTP requests deferred; the candidate's cold p95 was **175.48 ms**. A clean-commit 50-repetition local and HTTP comparison is required.
+
+On frozen development records, stock Kev MLX and the conditional scorer had **zero choice flips** across 1,468 decision-v7 and 764 transfer-v4 questions, with full coverage. Clean-question accuracy was unchanged: 0.87184 on decision-v7 and 0.80030 on transfer-v4. Brier improved from 0.18478 to 0.18423 and from 0.26436 to 0.26396; NLL also improved. ECE rose from 0.02318 to 0.02413 and from 0.03635 to 0.04227. A 1,000-resample paired record-cluster bootstrap gave ECE-difference 95% intervals of `[-0.00206, 0.00334]` and `[-0.00172, 0.00837]`; both include zero. The locked test remains closed at this stage.
+
+The verifier is conservative. It fully exited 375/1,204 decision-v7 development requests and 149/764 transfer-v4 requests. On the varied decision-v7 set, median model time improved only from 111.56 to 102.08 ms (**1.09×**). The fixed-request speedup must not be generalized to every request. The exit and verifier selection used calibration; development results remain an exploratory check until the final locked test.
+
+Freeze the checkpoint, both head artifacts, and gate before the one locked-test read. The confirmatory quality limits are full coverage, no clean accuracy loss, at most **0.005** higher Brier and **0.010** higher ECE on each suite, with the paired ECE interval including zero. The fixed-request speed target is a **2.0×** or greater median improvement for both new and cached states, locally and through HTTP, in 50-repetition clean-code runs. A failed locked result must be reported, not tuned against that partition.
+
 ## Rejected probes
 
 The following short M5 Pro probes used the same Kev-4B weights. They are diagnostic, not release benchmarks. Their code paths were removed after the full request failed the gate.

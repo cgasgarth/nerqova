@@ -40,13 +40,23 @@ def measure(client, payloads):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--engine", choices=["kev-mlx", "nerqova-packed"], required=True)
+    parser.add_argument("--engine", choices=["kev-mlx", "nerqova-packed", "nerqova-early"], required=True)
     parser.add_argument("--url", required=True)
     parser.add_argument("--run", default="jaredpalmer/kev-4b")
+    parser.add_argument("--exit-head", type=Path)
+    parser.add_argument("--exit-threshold", type=float)
+    parser.add_argument("--verify-head", type=Path)
+    parser.add_argument("--verify-threshold", type=float)
     parser.add_argument("--reps", type=int, default=50)
     parser.add_argument("--warmups", type=int, default=10)
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
+    if args.engine == "nerqova-early" and (args.exit_head is None or args.exit_threshold is None):
+        parser.error("nerqova-early requires --exit-head and --exit-threshold for provenance")
+    if args.engine != "nerqova-early" and (args.exit_head is not None or args.exit_threshold is not None):
+        parser.error("exit options require nerqova-early")
+    if (args.verify_head is None) != (args.verify_threshold is None) or (args.verify_head and args.engine != "nerqova-early"):
+        parser.error("verifier options must be set together for nerqova-early")
     if args.reps < 1 or args.warmups < 0:
         parser.error("reps must be positive and warmups must be nonnegative")
 
@@ -68,6 +78,19 @@ def main():
     request_hash = hashlib.sha256(json.dumps([warm_new, measured_new, request], sort_keys=True).encode()).hexdigest()
 
     with httpx.Client(base_url=args.url, timeout=120) as client:
+        runtime = None
+        if args.engine != "kev-mlx":
+            response = client.get("/v1/nerqova")
+            response.raise_for_status()
+            runtime = response.json()
+            expected = {"engine": args.engine,
+                        "checkpoint_revision": Path(checkpoint.path).name,
+                        "exit_head_sha256": digest(args.exit_head) if args.exit_head else None,
+                        "exit_threshold": args.exit_threshold,
+                        "verify_head_sha256": digest(args.verify_head) if args.verify_head else None,
+                        "verify_threshold": args.verify_threshold}
+            if runtime != expected:
+                raise ValueError(f"server runtime does not match requested benchmark: {runtime}")
         for payload in warm_new:
             response = client.post("/v1/systemone", json=payload)
             response.raise_for_status()
@@ -79,6 +102,7 @@ def main():
 
     report = {
         "engine": args.engine,
+        "server_runtime": runtime,
         "transport": "HTTP loopback",
         "url": args.url,
         "run": args.run,
@@ -87,6 +111,10 @@ def main():
         "adapter_sha256": digest(checkpoint.file("adapter_model.safetensors")),
         "head_sha256": digest(checkpoint.file("head.pt")),
         "temperature": checkpoint.meta.temperature,
+        "exit_head_sha256": digest(args.exit_head) if args.exit_head else None,
+        "exit_threshold": args.exit_threshold,
+        "verify_head_sha256": digest(args.verify_head) if args.verify_head else None,
+        "verify_threshold": args.verify_threshold,
         "encoded_request_sha256": hashlib.sha256(json.dumps(encoded["ids"]).encode()).hexdigest(),
         "requests_sha256": request_hash,
         "code_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),

@@ -49,13 +49,23 @@ def measure(fn, reps, warmups=10):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run", default="jaredpalmer/kev-4b")
-    parser.add_argument("--engine", choices=["kev-mlx", "nerqova", "nerqova-unmasked", "nerqova-packed"], default="nerqova")
+    parser.add_argument("--engine", choices=["kev-mlx", "nerqova", "nerqova-unmasked", "nerqova-packed", "nerqova-early"], default="nerqova")
+    parser.add_argument("--exit-head", type=Path)
+    parser.add_argument("--exit-threshold", type=float)
+    parser.add_argument("--verify-head", type=Path)
+    parser.add_argument("--verify-threshold", type=float)
     parser.add_argument("--state-tokens", type=int, default=270)
     parser.add_argument("--questions", type=int, default=5)
     parser.add_argument("--reps", type=int, default=100)
     parser.add_argument("--warmups", type=int, default=10)
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
+    if args.engine == "nerqova-early" and (args.exit_head is None or args.exit_threshold is None):
+        parser.error("nerqova-early requires --exit-head and --exit-threshold")
+    if args.engine != "nerqova-early" and (args.exit_head is not None or args.exit_threshold is not None):
+        parser.error("exit options require nerqova-early")
+    if (args.verify_head is None) != (args.verify_threshold is None) or (args.verify_head and args.engine != "nerqova-early"):
+        parser.error("verifier options must be set together for nerqova-early")
     if args.state_tokens < 1 or args.questions < 1 or args.reps < 1 or args.warmups < 0:
         parser.error("state-tokens, questions and reps must be positive; warmups must be nonnegative")
 
@@ -65,7 +75,9 @@ def main():
     else:
         checkpoint, tok, model = load_model(
             args.run, unmasked_branches=args.engine == "nerqova-unmasked",
-            packed_delta=args.engine == "nerqova-packed",
+            packed_delta=args.engine in ("nerqova-packed", "nerqova-early"),
+            exit_head=args.exit_head, exit_threshold=args.exit_threshold,
+            verify_head=args.verify_head, verify_threshold=args.verify_threshold,
         )
     enc = model.encode(tok, workload(tok, args.state_tokens, args.questions))
     fixture_probabilities, prefix = model.probs_and_prefix(enc)
@@ -78,6 +90,10 @@ def main():
         "adapter_sha256": digest(checkpoint.file("adapter_model.safetensors")),
         "head_sha256": digest(checkpoint.file("head.pt")),
         "temperature": model.head.temperature,
+        "exit_head_sha256": digest(args.exit_head) if args.exit_head else None,
+        "exit_threshold": args.exit_threshold,
+        "verify_head_sha256": digest(args.verify_head) if args.verify_head else None,
+        "verify_threshold": args.verify_threshold,
         "code_sha": command("git", "rev-parse", "HEAD"),
         "code_dirty": bool(command("git", "status", "--porcelain")),
         "chip": command("sysctl", "-n", "machdep.cpu.brand_string"),

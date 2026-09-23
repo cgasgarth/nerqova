@@ -44,7 +44,11 @@ def measure(server, request, reps, warmups, new_state):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--engine", choices=["kev-mlx", "nerqova", "nerqova-unmasked", "nerqova-packed"], required=True)
+    parser.add_argument("--engine", choices=["kev-mlx", "nerqova", "nerqova-unmasked", "nerqova-packed", "nerqova-early"], required=True)
+    parser.add_argument("--exit-head", type=Path)
+    parser.add_argument("--exit-threshold", type=float)
+    parser.add_argument("--verify-head", type=Path)
+    parser.add_argument("--verify-threshold", type=float)
     parser.add_argument("--run", default="jaredpalmer/kev-4b")
     parser.add_argument("--state-tokens", type=int, default=270)
     parser.add_argument("--questions", type=int, default=5)
@@ -52,6 +56,12 @@ def main():
     parser.add_argument("--warmups", type=int, default=10)
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
+    if args.engine == "nerqova-early" and (args.exit_head is None or args.exit_threshold is None):
+        parser.error("nerqova-early requires --exit-head and --exit-threshold")
+    if args.engine != "nerqova-early" and (args.exit_head is not None or args.exit_threshold is not None):
+        parser.error("exit options require nerqova-early")
+    if (args.verify_head is None) != (args.verify_threshold is None) or (args.verify_head and args.engine != "nerqova-early"):
+        parser.error("verifier options must be set together for nerqova-early")
     if args.reps < 1 or args.warmups < 0 or args.state_tokens < 1 or args.questions < 1:
         parser.error("reps, state-tokens and questions must be positive; warmups must be nonnegative")
 
@@ -61,7 +71,9 @@ def main():
     else:
         checkpoint, tok, model = load_model(
             args.run, unmasked_branches=args.engine == "nerqova-unmasked",
-            packed_delta=args.engine == "nerqova-packed",
+            packed_delta=args.engine in ("nerqova-packed", "nerqova-early"),
+            exit_head=args.exit_head, exit_threshold=args.exit_threshold,
+            verify_head=args.verify_head, verify_threshold=args.verify_threshold,
         )
     example = workload(tok, args.state_tokens, args.questions)
     request = SystemOneRequest.model_validate({
@@ -81,6 +93,10 @@ def main():
         "adapter_sha256": digest(checkpoint.file("adapter_model.safetensors")),
         "head_sha256": digest(checkpoint.file("head.pt")),
         "temperature": model.head.temperature,
+        "exit_head_sha256": digest(args.exit_head) if args.exit_head else None,
+        "exit_threshold": args.exit_threshold,
+        "verify_head_sha256": digest(args.verify_head) if args.verify_head else None,
+        "verify_threshold": args.verify_threshold,
         "encoded_request_sha256": hashlib.sha256(json.dumps(encoded["ids"]).encode()).hexdigest(),
         "code_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         "code_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()),
