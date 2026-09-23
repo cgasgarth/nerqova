@@ -1,0 +1,1705 @@
+{
+  "schema": "nerqova.conditional-exit.evidence.v1",
+  "repository": "https://github.com/cgasgarth/nerqova",
+  "runtime_code_sha": "e23ddd3d17929ec08e247988ac063fb2e3db7176",
+  "code_dirty": false,
+  "hardware": {
+    "chip": "Apple M5 Pro",
+    "macos": "26.5.2"
+  },
+  "runtime": {
+    "python": "3.13.15",
+    "mlx": "0.32.2",
+    "mlx_lm": "0.31.3"
+  },
+  "checkpoint": {
+    "run": "jaredpalmer/kev-4b",
+    "checkpoint_revision": "485ace8703592fcf405488b262449990824cfed1",
+    "base_revision": "1001bb4d826a52d1f399e183466143f4da7b741b",
+    "adapter_sha256": "9797de69a42188e411b17b7b4fcb66a23374dcebc21d71a7a66f836b5d34df2b",
+    "head_sha256": "d8f796da36ff7bd7c0fb9496b452139bb7851af4fc82b07b500b682d3f721d6a"
+  },
+  "training": {
+    "head_layer": 16,
+    "verifier_layer": 8,
+    "train_manifest": {
+      "run": "jaredpalmer/kev-4b",
+      "checkpoint_revision": "485ace8703592fcf405488b262449990824cfed1",
+      "base_revision": "1001bb4d826a52d1f399e183466143f4da7b741b",
+      "suite_sha256": "a8f50e481b7d90b97da049e0ff6a01cee2f1ed204aed61a8265af0edbb5514d2",
+      "split": "train",
+      "layer": 16,
+      "records": 12576,
+      "shard_records": 128,
+      "teacher_sha256": "eee4a3a02b19f9827e9475d2347ae8671b4ea9c0c0e2d4d1b0aff7bb52930d9b"
+    },
+    "calibration_manifest": {
+      "run": "jaredpalmer/kev-4b",
+      "checkpoint_revision": "485ace8703592fcf405488b262449990824cfed1",
+      "base_revision": "1001bb4d826a52d1f399e183466143f4da7b741b",
+      "suite_sha256": "a8f50e481b7d90b97da049e0ff6a01cee2f1ed204aed61a8265af0edbb5514d2",
+      "split": "calibration",
+      "layer": 16,
+      "records": 968,
+      "shard_records": 128,
+      "teacher_sha256": null
+    },
+    "head_sha256": "18ee6b7db1934325aa481199ea7b867f14b26ba02d234aee4c4f80bfe5180d11",
+    "verifier_sha256": "5c24356fba369816250226941eb781916393a15853235d6bac60b0f2f221d066",
+    "teacher_archive_sha256": "345d4d485d5db146187cc12cfbfefd4c9b1ff852baec9bb1e61d26d0c7b2b39b"
+  },
+  "gate": {
+    "exit_confidence": 0.9,
+    "verifier_margin_above_uniform": 0.26,
+    "calibration": {
+      "full": {
+        "acc": 0.8806620209059234,
+        "brier": 0.16964667625538632,
+        "ece": 0.021917906151727572,
+        "nll": 0.31077163171414657
+      },
+      "selected": {
+        "threshold": 0.9,
+        "question_exit_rate": 0.31010452961672474,
+        "complete_record_exit_rate": 0.2159090909090909,
+        "teacher_choice_flips": 0,
+        "accuracy": 0.8806620209059234,
+        "brier": 0.16926718614746875,
+        "ece": 0.02148383714336554,
+        "nll": 0.30868805459720916
+      }
+    }
+  },
+  "speed": {
+    "warmups": 10,
+    "repetitions": 50,
+    "local_complete": [
+      {
+        "order": "a",
+        "stock": {
+          "engine": "kev-mlx",
+          "new_state": {
+            "median": 195.4,
+            "p95": 195.88,
+            "samples": [
+              194.23,
+              194.3,
+              194.58,
+              194.71,
+              194.77,
+              194.78,
+              194.8,
+              194.8,
+              194.81,
+              194.93,
+              195.04,
+              195.14,
+              195.15,
+              195.16,
+              195.18,
+              195.23,
+              195.23,
+              195.24,
+              195.24,
+              195.28,
+              195.28,
+              195.3,
+              195.37,
+              195.38,
+              195.39,
+              195.41,
+              195.42,
+              195.46,
+              195.46,
+              195.52,
+              195.53,
+              195.6,
+              195.6,
+              195.62,
+              195.66,
+              195.69,
+              195.71,
+              195.72,
+              195.76,
+              195.76,
+              195.77,
+              195.8,
+              195.83,
+              195.85,
+              195.86,
+              195.86,
+              195.88,
+              195.91,
+              196.07,
+              196.3
+            ]
+          },
+          "cached_state": {
+            "median": 79.28,
+            "p95": 79.84,
+            "samples": [
+              78.72,
+              78.86,
+              78.88,
+              78.88,
+              78.89,
+              78.95,
+              78.96,
+              78.96,
+              78.99,
+              79.0,
+              79.0,
+              79.03,
+              79.04,
+              79.05,
+              79.09,
+              79.11,
+              79.11,
+              79.15,
+              79.16,
+              79.16,
+              79.17,
+              79.19,
+              79.2,
+              79.25,
+              79.28,
+              79.29,
+              79.3,
+              79.34,
+              79.34,
+              79.35,
+              79.36,
+              79.37,
+              79.39,
+              79.39,
+              79.4,
+              79.4,
+              79.43,
+              79.46,
+              79.48,
+              79.49,
+              79.56,
+              79.56,
+              79.64,
+              79.67,
+              79.74,
+              79.77,
+              79.84,
+              79.9,
+              79.9,
+              79.99
+            ]
+          },
+          "choices": {
+            "0": "Replace it with the blue shirt",
+            "1": "Replace it with the blue shirt",
+            "2": "Replace it with the blue shirt",
+            "3": "Replace it with the blue shirt",
+            "4": "Replace it with the blue shirt"
+          }
+        },
+        "candidate": {
+          "engine": "nerqova-early",
+          "new_state": {
+            "median": 92.45,
+            "p95": 92.87,
+            "samples": [
+              91.79,
+              91.86,
+              91.89,
+              91.91,
+              91.94,
+              92.05,
+              92.12,
+              92.13,
+              92.15,
+              92.19,
+              92.22,
+              92.23,
+              92.24,
+              92.25,
+              92.27,
+              92.28,
+              92.28,
+              92.29,
+              92.29,
+              92.3,
+              92.31,
+              92.38,
+              92.39,
+              92.42,
+              92.44,
+              92.45,
+              92.47,
+              92.48,
+              92.49,
+              92.49,
+              92.49,
+              92.52,
+              92.54,
+              92.54,
+              92.56,
+              92.57,
+              92.58,
+              92.62,
+              92.62,
+              92.64,
+              92.65,
+              92.72,
+              92.73,
+              92.76,
+              92.78,
+              92.79,
+              92.87,
+              92.87,
+              92.97,
+              93.22
+            ]
+          },
+          "cached_state": {
+            "median": 38.0,
+            "p95": 38.57,
+            "samples": [
+              37.45,
+              37.67,
+              37.73,
+              37.76,
+              37.78,
+              37.79,
+              37.79,
+              37.79,
+              37.8,
+              37.81,
+              37.83,
+              37.83,
+              37.87,
+              37.9,
+              37.92,
+              37.92,
+              37.93,
+              37.93,
+              37.93,
+              37.93,
+              37.94,
+              37.98,
+              37.99,
+              37.99,
+              38.0,
+              38.0,
+              38.02,
+              38.03,
+              38.05,
+              38.05,
+              38.11,
+              38.12,
+              38.12,
+              38.12,
+              38.16,
+              38.17,
+              38.2,
+              38.22,
+              38.23,
+              38.27,
+              38.33,
+              38.34,
+              38.36,
+              38.38,
+              38.39,
+              38.46,
+              38.57,
+              38.66,
+              38.87,
+              38.87
+            ]
+          },
+          "choices": {
+            "0": "Replace it with the blue shirt",
+            "1": "Replace it with the blue shirt",
+            "2": "Replace it with the blue shirt",
+            "3": "Replace it with the blue shirt",
+            "4": "Replace it with the blue shirt"
+          }
+        },
+        "speedup": {
+          "new_state_speedup": 2.1135749053542456,
+          "cached_state_speedup": 2.086315789473684
+        },
+        "encoded_request_sha256": "cbd28986931543e2da14e54652e4ca4e5dceff4b1c8f3762bce31227d32086e0",
+        "requests_sha256": null
+      },
+      {
+        "order": "b",
+        "stock": {
+          "engine": "kev-mlx",
+          "new_state": {
+            "median": 195.94,
+            "p95": 196.39,
+            "samples": [
+              194.62,
+              195.15,
+              195.24,
+              195.25,
+              195.26,
+              195.29,
+              195.32,
+              195.37,
+              195.39,
+              195.48,
+              195.51,
+              195.54,
+              195.55,
+              195.55,
+              195.62,
+              195.72,
+              195.72,
+              195.75,
+              195.78,
+              195.8,
+              195.8,
+              195.85,
+              195.85,
+              195.9,
+              195.92,
+              195.96,
+              195.96,
+              195.96,
+              195.97,
+              195.97,
+              195.98,
+              196.01,
+              196.04,
+              196.05,
+              196.07,
+              196.09,
+              196.11,
+              196.2,
+              196.21,
+              196.23,
+              196.25,
+              196.26,
+              196.28,
+              196.29,
+              196.33,
+              196.39,
+              196.39,
+              196.4,
+              196.42,
+              196.53
+            ]
+          },
+          "cached_state": {
+            "median": 79.44,
+            "p95": 79.76,
+            "samples": [
+              78.63,
+              78.68,
+              78.85,
+              78.95,
+              79.06,
+              79.08,
+              79.08,
+              79.09,
+              79.1,
+              79.12,
+              79.13,
+              79.14,
+              79.21,
+              79.23,
+              79.24,
+              79.26,
+              79.28,
+              79.3,
+              79.34,
+              79.35,
+              79.35,
+              79.42,
+              79.42,
+              79.42,
+              79.43,
+              79.44,
+              79.45,
+              79.48,
+              79.5,
+              79.52,
+              79.52,
+              79.52,
+              79.56,
+              79.57,
+              79.58,
+              79.61,
+              79.62,
+              79.63,
+              79.65,
+              79.65,
+              79.65,
+              79.67,
+              79.67,
+              79.7,
+              79.71,
+              79.73,
+              79.76,
+              79.95,
+              79.97,
+              80.01
+            ]
+          },
+          "choices": {
+            "0": "Replace it with the blue shirt",
+            "1": "Replace it with the blue shirt",
+            "2": "Replace it with the blue shirt",
+            "3": "Replace it with the blue shirt",
+            "4": "Replace it with the blue shirt"
+          }
+        },
+        "candidate": {
+          "engine": "nerqova-early",
+          "new_state": {
+            "median": 92.53,
+            "p95": 92.91,
+            "samples": [
+              91.96,
+              91.96,
+              92.03,
+              92.05,
+              92.08,
+              92.09,
+              92.1,
+              92.13,
+              92.15,
+              92.18,
+              92.19,
+              92.19,
+              92.24,
+              92.25,
+              92.25,
+              92.3,
+              92.39,
+              92.39,
+              92.4,
+              92.41,
+              92.42,
+              92.43,
+              92.44,
+              92.44,
+              92.51,
+              92.54,
+              92.54,
+              92.55,
+              92.56,
+              92.56,
+              92.57,
+              92.59,
+              92.6,
+              92.6,
+              92.61,
+              92.64,
+              92.65,
+              92.69,
+              92.69,
+              92.7,
+              92.71,
+              92.71,
+              92.82,
+              92.84,
+              92.84,
+              92.86,
+              92.91,
+              92.92,
+              93.2,
+              93.65
+            ]
+          },
+          "cached_state": {
+            "median": 38.16,
+            "p95": 38.87,
+            "samples": [
+              37.67,
+              37.69,
+              37.71,
+              37.75,
+              37.75,
+              37.78,
+              37.79,
+              37.82,
+              37.83,
+              37.85,
+              37.88,
+              37.89,
+              37.92,
+              37.95,
+              37.97,
+              38.0,
+              38.01,
+              38.03,
+              38.05,
+              38.08,
+              38.1,
+              38.11,
+              38.14,
+              38.15,
+              38.15,
+              38.17,
+              38.18,
+              38.19,
+              38.25,
+              38.27,
+              38.3,
+              38.3,
+              38.31,
+              38.34,
+              38.35,
+              38.35,
+              38.42,
+              38.54,
+              38.54,
+              38.58,
+              38.62,
+              38.64,
+              38.66,
+              38.73,
+              38.76,
+              38.82,
+              38.87,
+              38.88,
+              38.93,
+              38.93
+            ]
+          },
+          "choices": {
+            "0": "Replace it with the blue shirt",
+            "1": "Replace it with the blue shirt",
+            "2": "Replace it with the blue shirt",
+            "3": "Replace it with the blue shirt",
+            "4": "Replace it with the blue shirt"
+          }
+        },
+        "speedup": {
+          "new_state_speedup": 2.117583486436831,
+          "cached_state_speedup": 2.0817610062893084
+        },
+        "encoded_request_sha256": "cbd28986931543e2da14e54652e4ca4e5dceff4b1c8f3762bce31227d32086e0",
+        "requests_sha256": null
+      }
+    ],
+    "http_complete": [
+      {
+        "order": "a",
+        "stock": {
+          "engine": "kev-mlx",
+          "new_state": {
+            "median": 194.18,
+            "p95": 205.03,
+            "samples": [
+              193.24,
+              193.25,
+              193.26,
+              193.33,
+              193.42,
+              193.49,
+              193.64,
+              193.67,
+              193.7,
+              193.7,
+              193.71,
+              193.76,
+              193.76,
+              193.76,
+              193.77,
+              193.82,
+              193.85,
+              193.86,
+              193.9,
+              193.91,
+              193.92,
+              194.02,
+              194.03,
+              194.05,
+              194.18,
+              194.19,
+              194.22,
+              194.48,
+              194.69,
+              194.76,
+              194.78,
+              195.16,
+              195.6,
+              196.07,
+              196.28,
+              198.77,
+              199.13,
+              200.64,
+              200.81,
+              201.02,
+              201.83,
+              203.67,
+              204.38,
+              204.42,
+              204.75,
+              204.87,
+              205.03,
+              205.15,
+              209.17,
+              215.19
+            ]
+          },
+          "cached_state": {
+            "median": 81.1,
+            "p95": 85.9,
+            "samples": [
+              78.84,
+              79.13,
+              79.19,
+              79.23,
+              79.25,
+              79.26,
+              79.28,
+              79.3,
+              79.3,
+              79.44,
+              79.47,
+              79.56,
+              79.62,
+              79.64,
+              79.76,
+              79.81,
+              79.91,
+              80.07,
+              80.14,
+              80.14,
+              80.26,
+              80.39,
+              80.46,
+              80.64,
+              80.93,
+              81.27,
+              81.31,
+              81.6,
+              81.71,
+              81.74,
+              81.76,
+              81.79,
+              81.96,
+              82.0,
+              82.02,
+              82.07,
+              82.43,
+              82.56,
+              84.01,
+              84.71,
+              84.97,
+              85.05,
+              85.26,
+              85.46,
+              85.49,
+              85.51,
+              85.9,
+              86.04,
+              86.35,
+              86.98
+            ]
+          },
+          "choices": {
+            "0": "Replace it with the blue shirt",
+            "1": "Replace it with the blue shirt",
+            "2": "Replace it with the blue shirt",
+            "3": "Replace it with the blue shirt",
+            "4": "Replace it with the blue shirt"
+          }
+        },
+        "candidate": {
+          "engine": "nerqova-early",
+          "new_state": {
+            "median": 95.23,
+            "p95": 174.73,
+            "samples": [
+              94.23,
+              94.54,
+              94.67,
+              94.7,
+              94.73,
+              94.74,
+              94.8,
+              94.81,
+              94.81,
+              94.84,
+              94.87,
+              94.87,
+              94.88,
+              94.92,
+              94.92,
+              94.99,
+              95.01,
+              95.1,
+              95.11,
+              95.12,
+              95.13,
+              95.18,
+              95.19,
+              95.2,
+              95.21,
+              95.26,
+              95.26,
+              95.28,
+              95.33,
+              95.34,
+              95.38,
+              95.4,
+              95.44,
+              95.51,
+              95.54,
+              95.54,
+              95.54,
+              95.56,
+              95.61,
+              95.72,
+              95.78,
+              95.83,
+              95.94,
+              96.05,
+              96.12,
+              96.17,
+              174.73,
+              175.58,
+              176.13,
+              176.38
+            ]
+          },
+          "cached_state": {
+            "median": 39.76,
+            "p95": 40.14,
+            "samples": [
+              38.82,
+              39.05,
+              39.06,
+              39.07,
+              39.24,
+              39.33,
+              39.39,
+              39.45,
+              39.49,
+              39.5,
+              39.52,
+              39.54,
+              39.54,
+              39.55,
+              39.58,
+              39.6,
+              39.63,
+              39.63,
+              39.65,
+              39.65,
+              39.7,
+              39.73,
+              39.73,
+              39.74,
+              39.76,
+              39.76,
+              39.79,
+              39.81,
+              39.81,
+              39.81,
+              39.82,
+              39.83,
+              39.85,
+              39.89,
+              39.91,
+              39.95,
+              39.97,
+              40.0,
+              40.0,
+              40.0,
+              40.01,
+              40.02,
+              40.02,
+              40.03,
+              40.09,
+              40.13,
+              40.14,
+              40.2,
+              40.34,
+              40.56
+            ]
+          },
+          "choices": {
+            "0": "Replace it with the blue shirt",
+            "1": "Replace it with the blue shirt",
+            "2": "Replace it with the blue shirt",
+            "3": "Replace it with the blue shirt",
+            "4": "Replace it with the blue shirt"
+          }
+        },
+        "speedup": {
+          "new_state_speedup": 2.0390633203822324,
+          "cached_state_speedup": 2.039738430583501
+        },
+        "encoded_request_sha256": "cbd28986931543e2da14e54652e4ca4e5dceff4b1c8f3762bce31227d32086e0",
+        "requests_sha256": "c8a7dd60c1bad1bc9bb1a5fcab38f2c7af29517f72fb77cd3c28e9a8346b93f1"
+      },
+      {
+        "order": "b",
+        "stock": {
+          "engine": "kev-mlx",
+          "new_state": {
+            "median": 197.06,
+            "p95": 197.71,
+            "samples": [
+              196.07,
+              196.43,
+              196.47,
+              196.51,
+              196.52,
+              196.59,
+              196.61,
+              196.62,
+              196.62,
+              196.63,
+              196.65,
+              196.68,
+              196.7,
+              196.71,
+              196.72,
+              196.8,
+              196.84,
+              196.86,
+              196.89,
+              196.91,
+              196.94,
+              197.01,
+              197.04,
+              197.05,
+              197.05,
+              197.07,
+              197.07,
+              197.07,
+              197.08,
+              197.08,
+              197.08,
+              197.1,
+              197.16,
+              197.19,
+              197.25,
+              197.25,
+              197.29,
+              197.34,
+              197.44,
+              197.46,
+              197.47,
+              197.54,
+              197.57,
+              197.59,
+              197.64,
+              197.66,
+              197.71,
+              197.71,
+              197.79,
+              198.27
+            ]
+          },
+          "cached_state": {
+            "median": 80.32,
+            "p95": 80.93,
+            "samples": [
+              79.65,
+              79.77,
+              79.78,
+              79.9,
+              79.95,
+              79.97,
+              80.0,
+              80.01,
+              80.08,
+              80.1,
+              80.11,
+              80.15,
+              80.17,
+              80.17,
+              80.18,
+              80.18,
+              80.2,
+              80.23,
+              80.24,
+              80.25,
+              80.25,
+              80.27,
+              80.29,
+              80.31,
+              80.31,
+              80.33,
+              80.37,
+              80.4,
+              80.4,
+              80.46,
+              80.48,
+              80.49,
+              80.5,
+              80.5,
+              80.58,
+              80.59,
+              80.65,
+              80.69,
+              80.72,
+              80.72,
+              80.72,
+              80.76,
+              80.8,
+              80.81,
+              80.9,
+              80.92,
+              80.93,
+              80.97,
+              81.0,
+              81.01
+            ]
+          },
+          "choices": {
+            "0": "Replace it with the blue shirt",
+            "1": "Replace it with the blue shirt",
+            "2": "Replace it with the blue shirt",
+            "3": "Replace it with the blue shirt",
+            "4": "Replace it with the blue shirt"
+          }
+        },
+        "candidate": {
+          "engine": "nerqova-early",
+          "new_state": {
+            "median": 95.16,
+            "p95": 175.78,
+            "samples": [
+              94.08,
+              94.2,
+              94.55,
+              94.56,
+              94.69,
+              94.69,
+              94.69,
+              94.72,
+              94.73,
+              94.89,
+              94.89,
+              94.97,
+              94.99,
+              94.99,
+              94.99,
+              94.99,
+              95.01,
+              95.03,
+              95.05,
+              95.06,
+              95.07,
+              95.12,
+              95.14,
+              95.15,
+              95.16,
+              95.17,
+              95.2,
+              95.21,
+              95.22,
+              95.23,
+              95.23,
+              95.23,
+              95.29,
+              95.3,
+              95.32,
+              95.37,
+              95.4,
+              95.4,
+              95.45,
+              95.45,
+              95.47,
+              95.52,
+              95.58,
+              95.59,
+              95.74,
+              96.07,
+              175.78,
+              175.92,
+              176.01,
+              176.66
+            ]
+          },
+          "cached_state": {
+            "median": 39.84,
+            "p95": 40.18,
+            "samples": [
+              39.09,
+              39.33,
+              39.43,
+              39.47,
+              39.49,
+              39.51,
+              39.54,
+              39.55,
+              39.56,
+              39.56,
+              39.59,
+              39.61,
+              39.63,
+              39.63,
+              39.63,
+              39.63,
+              39.64,
+              39.65,
+              39.67,
+              39.68,
+              39.71,
+              39.72,
+              39.74,
+              39.8,
+              39.82,
+              39.86,
+              39.87,
+              39.89,
+              39.89,
+              39.91,
+              39.92,
+              39.92,
+              39.93,
+              39.93,
+              39.96,
+              39.97,
+              39.97,
+              39.97,
+              39.97,
+              39.99,
+              40.03,
+              40.06,
+              40.07,
+              40.1,
+              40.12,
+              40.12,
+              40.18,
+              40.28,
+              40.4,
+              40.83
+            ]
+          },
+          "choices": {
+            "0": "Replace it with the blue shirt",
+            "1": "Replace it with the blue shirt",
+            "2": "Replace it with the blue shirt",
+            "3": "Replace it with the blue shirt",
+            "4": "Replace it with the blue shirt"
+          }
+        },
+        "speedup": {
+          "new_state_speedup": 2.0708280790248006,
+          "cached_state_speedup": 2.016064257028112
+        },
+        "encoded_request_sha256": "cbd28986931543e2da14e54652e4ca4e5dceff4b1c8f3762bce31227d32086e0",
+        "requests_sha256": "c8a7dd60c1bad1bc9bb1a5fcab38f2c7af29517f72fb77cd3c28e9a8346b93f1"
+      }
+    ],
+    "workload": {
+      "state_tokens": 275,
+      "packed_tokens": 430,
+      "questions": 5
+    }
+  },
+  "locked_quality": {
+    "suite_sha256": "a8f50e481b7d90b97da049e0ff6a01cee2f1ed204aed61a8265af0edbb5514d2",
+    "transfer_suite_sha256": "31677c2256b406222e7d94ffdc0a02a70ce05746b9efe307876024c4e77291d1",
+    "decision_test": {
+      "stock": {
+        "clean": {
+          "n": 1200,
+          "nll": 0.35922967145580476,
+          "acc": 0.8716666666666667,
+          "ece": 0.01923788474974323,
+          "brier": 0.18894824422709908,
+          "mean_conf": 0.8655343533421186,
+          "confident_error_rate": 0.014166666666666666,
+          "coverage_at_0_9": 0.6591666666666667,
+          "accuracy_at_0_9": 0.9785082174462706,
+          "coverage_at_5pct_error": 0.7875,
+          "coverage_at_1pct_error": 0.585,
+          "aurc": 0.02897685851551755,
+          "error_rate_at_0_9": 0.021491782553729456,
+          "confidence_bias": -0.006132313324548111,
+          "top_bins": {
+            "0.9": {
+              "n": 791,
+              "errors": 17,
+              "error_rate": 0.021491782553729456
+            },
+            "0.95": {
+              "n": 701,
+              "errors": 7,
+              "error_rate": 0.009985734664764621
+            },
+            "0.99": {
+              "n": 320,
+              "errors": 2,
+              "error_rate": 0.00625
+            }
+          },
+          "selective": {
+            "0.5": {
+              "coverage": 0.5,
+              "accuracy": 0.9916666666666667,
+              "confidence_cutoff": 0.9688264204264316
+            },
+            "0.8": {
+              "coverage": 0.8,
+              "accuracy": 0.9479166666666666,
+              "confidence_cutoff": 0.7093906138319294
+            }
+          },
+          "score_mae": 0.4963189197263186,
+          "ranked_probability_score": 0.07900553039160209
+        },
+        "coverage": {
+          "requested_records": 1176,
+          "requested_questions": 1440,
+          "evaluated_records": 1176,
+          "evaluated_questions": 1440,
+          "rejected_records": 0,
+          "truncated_records": 0
+        }
+      },
+      "candidate": {
+        "clean": {
+          "n": 1200,
+          "nll": 0.3577820407634957,
+          "acc": 0.8716666666666667,
+          "ece": 0.019925262100488787,
+          "brier": 0.18837336683906822,
+          "mean_conf": 0.8679415737625167,
+          "confident_error_rate": 0.014166666666666666,
+          "coverage_at_0_9": 0.6733333333333333,
+          "accuracy_at_0_9": 0.9789603960396039,
+          "coverage_at_5pct_error": 0.7883333333333333,
+          "coverage_at_1pct_error": 0.4508333333333333,
+          "aurc": 0.02797192409467368,
+          "error_rate_at_0_9": 0.02103960396039604,
+          "confidence_bias": -0.003725092904150018,
+          "top_bins": {
+            "0.9": {
+              "n": 808,
+              "errors": 17,
+              "error_rate": 0.02103960396039604
+            },
+            "0.95": {
+              "n": 713,
+              "errors": 9,
+              "error_rate": 0.012622720897615708
+            },
+            "0.99": {
+              "n": 320,
+              "errors": 2,
+              "error_rate": 0.00625
+            }
+          },
+          "selective": {
+            "0.5": {
+              "coverage": 0.5,
+              "accuracy": 0.9883333333333333,
+              "confidence_cutoff": 0.9734640198521728
+            },
+            "0.8": {
+              "coverage": 0.8,
+              "accuracy": 0.9479166666666666,
+              "confidence_cutoff": 0.709284115021411
+            }
+          },
+          "score_mae": 0.4963276390945707,
+          "ranked_probability_score": 0.07899983070622665
+        },
+        "coverage": {
+          "requested_records": 1176,
+          "requested_questions": 1440,
+          "evaluated_records": 1176,
+          "evaluated_questions": 1440,
+          "rejected_records": 0,
+          "truncated_records": 0
+        }
+      },
+      "choice_comparison": {
+        "questions": 1440,
+        "max_probability_delta": 0.223943980159371,
+        "choice_flips": 0
+      },
+      "paired_bootstrap": {
+        "acc": {
+          "micro_acc_delta": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "samples": 1000,
+          "groups": 880,
+          "aggregation": "micro",
+          "unit": "source-stratified original record; sibling questions stay together",
+          "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+        },
+        "brier": {
+          "micro_brier_delta": -0.0005748773880308033,
+          "ci95": [
+            -0.0011647541908048863,
+            1.695906766033117e-05
+          ],
+          "samples": 1000,
+          "groups": 880,
+          "aggregation": "micro",
+          "unit": "source-stratified original record; sibling questions stay together",
+          "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+        },
+        "ece": {
+          "micro_ece_delta": 0.0006873773507456576,
+          "ci95": [
+            -0.0023199460815517404,
+            0.0032426119495259755
+          ],
+          "samples": 1000,
+          "groups": 880,
+          "aggregation": "micro",
+          "unit": "source-stratified original record; sibling questions stay together",
+          "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+        },
+        "nll": {
+          "micro_nll_delta": -0.001447630692309132,
+          "ci95": [
+            -0.005040215183851176,
+            0.003006669958707071
+          ],
+          "samples": 1000,
+          "groups": 880,
+          "aggregation": "micro",
+          "unit": "source-stratified original record; sibling questions stay together",
+          "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+        }
+      },
+      "stock_paired_flip": {
+        "pairs": 80,
+        "flip_rate": 0.9375,
+        "both_correct_rate": 0.9375
+      },
+      "candidate_paired_flip": {
+        "pairs": 80,
+        "flip_rate": 0.9375,
+        "both_correct_rate": 0.9375
+      },
+      "stock_unknowable": null,
+      "candidate_unknowable": null
+    },
+    "transfer_test": {
+      "stock": {
+        "clean": {
+          "n": 656,
+          "nll": 0.4264156349200169,
+          "acc": 0.8338414634146342,
+          "ece": 0.03556493642258776,
+          "brier": 0.23205030263216836,
+          "mean_conf": 0.8443784874001266,
+          "confident_error_rate": 0.018292682926829267,
+          "coverage_at_0_9": 0.586890243902439,
+          "accuracy_at_0_9": 0.9688311688311688,
+          "coverage_at_5pct_error": 0.6570121951219512,
+          "coverage_at_1pct_error": 0.23170731707317074,
+          "aurc": 0.045476771040524125,
+          "error_rate_at_0_9": 0.03116883116883117,
+          "confidence_bias": 0.010537023985492389,
+          "top_bins": {
+            "0.9": {
+              "n": 385,
+              "errors": 12,
+              "error_rate": 0.03116883116883117
+            },
+            "0.95": {
+              "n": 316,
+              "errors": 8,
+              "error_rate": 0.02531645569620253
+            },
+            "0.99": {
+              "n": 77,
+              "errors": 0,
+              "error_rate": 0.0
+            }
+          },
+          "selective": {
+            "0.5": {
+              "coverage": 0.5,
+              "accuracy": 0.975609756097561,
+              "confidence_cutoff": 0.9443504214286804
+            },
+            "0.8": {
+              "coverage": 0.8003048780487805,
+              "accuracy": 0.9066666666666666,
+              "confidence_cutoff": 0.6930280056715233
+            }
+          },
+          "score_mae": 0.2720504529699867,
+          "ranked_probability_score": 0.08391398926623442
+        },
+        "coverage": {
+          "requested_records": 764,
+          "requested_questions": 764,
+          "evaluated_records": 764,
+          "evaluated_questions": 764,
+          "rejected_records": 0,
+          "truncated_records": 0
+        }
+      },
+      "candidate": {
+        "clean": {
+          "n": 656,
+          "nll": 0.42378161771934386,
+          "acc": 0.8338414634146342,
+          "ece": 0.043315762171460305,
+          "brier": 0.231554326926037,
+          "mean_conf": 0.8530308208013593,
+          "confident_error_rate": 0.022865853658536585,
+          "coverage_at_0_9": 0.6295731707317073,
+          "accuracy_at_0_9": 0.9636803874092009,
+          "coverage_at_5pct_error": 0.676829268292683,
+          "coverage_at_1pct_error": 0.3277439024390244,
+          "aurc": 0.042871450545923624,
+          "error_rate_at_0_9": 0.03631961259079903,
+          "confidence_bias": 0.019189357386725114,
+          "top_bins": {
+            "0.9": {
+              "n": 413,
+              "errors": 15,
+              "error_rate": 0.03631961259079903
+            },
+            "0.95": {
+              "n": 364,
+              "errors": 10,
+              "error_rate": 0.027472527472527472
+            },
+            "0.99": {
+              "n": 107,
+              "errors": 0,
+              "error_rate": 0.0
+            }
+          },
+          "selective": {
+            "0.5": {
+              "coverage": 0.5,
+              "accuracy": 0.9725609756097561,
+              "confidence_cutoff": 0.967632253725674
+            },
+            "0.8": {
+              "coverage": 0.8003048780487805,
+              "accuracy": 0.9066666666666666,
+              "confidence_cutoff": 0.692868988228897
+            }
+          },
+          "score_mae": 0.2720883877825917,
+          "ranked_probability_score": 0.08390985428818867
+        },
+        "coverage": {
+          "requested_records": 764,
+          "requested_questions": 764,
+          "evaluated_records": 764,
+          "evaluated_questions": 764,
+          "rejected_records": 0,
+          "truncated_records": 0
+        }
+      },
+      "choice_comparison": {
+        "questions": 764,
+        "max_probability_delta": 0.3522427333456565,
+        "choice_flips": 0
+      },
+      "paired_bootstrap": {
+        "acc": {
+          "micro_acc_delta": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "samples": 1000,
+          "groups": 544,
+          "aggregation": "micro",
+          "unit": "source-stratified original record; sibling questions stay together",
+          "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+        },
+        "brier": {
+          "micro_brier_delta": -0.0004959757061313574,
+          "ci95": [
+            -0.002768472724048273,
+            0.0022680138203346597
+          ],
+          "samples": 1000,
+          "groups": 544,
+          "aggregation": "micro",
+          "unit": "source-stratified original record; sibling questions stay together",
+          "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+        },
+        "ece": {
+          "micro_ece_delta": 0.007750825748872571,
+          "ci95": [
+            -0.0060670167928554355,
+            0.009751956539036764
+          ],
+          "samples": 1000,
+          "groups": 544,
+          "aggregation": "micro",
+          "unit": "source-stratified original record; sibling questions stay together",
+          "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+        },
+        "nll": {
+          "micro_nll_delta": -0.0026340172006731333,
+          "ci95": [
+            -0.009210321603057636,
+            0.006625138888890275
+          ],
+          "samples": 1000,
+          "groups": 544,
+          "aggregation": "micro",
+          "unit": "source-stratified original record; sibling questions stay together",
+          "method": "paired cluster percentile bootstrap; full statistic recomputed in each resample"
+        }
+      },
+      "stock_paired_flip": {
+        "pairs": 64,
+        "flip_rate": 0.84375,
+        "both_correct_rate": 0.765625,
+        "invariant_pairs": 24,
+        "invariance_rate": 1.0,
+        "invariant_both_correct_rate": 0.875
+      },
+      "candidate_paired_flip": {
+        "pairs": 64,
+        "flip_rate": 0.84375,
+        "both_correct_rate": 0.765625,
+        "invariant_pairs": 24,
+        "invariance_rate": 1.0,
+        "invariant_both_correct_rate": 0.875
+      },
+      "stock_unknowable": null,
+      "candidate_unknowable": null
+    }
+  },
+  "varied_development": {
+    "development": {
+      "stock_clean": {
+        "n": 1264,
+        "nll": 0.35832222146978804,
+        "acc": 0.8718354430379747,
+        "ece": 0.02317634003655508,
+        "brier": 0.18478377408038466,
+        "mean_conf": 0.8786379197565861,
+        "confident_error_rate": 0.021360759493670885,
+        "coverage_at_0_9": 0.6985759493670886,
+        "accuracy_at_0_9": 0.9694224235560589,
+        "coverage_at_5pct_error": 0.7768987341772152,
+        "coverage_at_1pct_error": 0.010284810126582278,
+        "aurc": 0.03541256605249591,
+        "error_rate_at_0_9": 0.030577576443941108,
+        "confidence_bias": 0.00680247671861145,
+        "top_bins": {
+          "0.9": {
+            "n": 883,
+            "errors": 27,
+            "error_rate": 0.030577576443941108
+          },
+          "0.95": {
+            "n": 782,
+            "errors": 18,
+            "error_rate": 0.023017902813299233
+          },
+          "0.99": {
+            "n": 346,
+            "errors": 4,
+            "error_rate": 0.011560693641618497
+          }
+        },
+        "selective": {
+          "0.5": {
+            "coverage": 0.5,
+            "accuracy": 0.9825949367088608,
+            "confidence_cutoff": 0.9732622710519678
+          },
+          "0.8": {
+            "coverage": 0.8006329113924051,
+            "accuracy": 0.9446640316205533,
+            "confidence_cutoff": 0.7549218647915403
+          }
+        },
+        "score_mae": 0.47875441755319853,
+        "ranked_probability_score": 0.07071905575590569
+      },
+      "candidate_clean": {
+        "n": 1264,
+        "nll": 0.35334674233319313,
+        "acc": 0.8718354430379747,
+        "ece": 0.024134414648432002,
+        "brier": 0.18423206854553714,
+        "mean_conf": 0.8806640328325708,
+        "confident_error_rate": 0.023734177215189875,
+        "coverage_at_0_9": 0.7112341772151899,
+        "accuracy_at_0_9": 0.9666295884315906,
+        "coverage_at_5pct_error": 0.7800632911392406,
+        "coverage_at_1pct_error": 0.4936708860759494,
+        "aurc": 0.033650957897056036,
+        "error_rate_at_0_9": 0.03337041156840934,
+        "confidence_bias": 0.008828589794596109,
+        "top_bins": {
+          "0.9": {
+            "n": 899,
+            "errors": 30,
+            "error_rate": 0.03337041156840934
+          },
+          "0.95": {
+            "n": 789,
+            "errors": 17,
+            "error_rate": 0.021546261089987327
+          },
+          "0.99": {
+            "n": 362,
+            "errors": 4,
+            "error_rate": 0.011049723756906077
+          }
+        },
+        "selective": {
+          "0.5": {
+            "coverage": 0.5,
+            "accuracy": 0.9873417721518988,
+            "confidence_cutoff": 0.976757879952852
+          },
+          "0.8": {
+            "coverage": 0.8006329113924051,
+            "accuracy": 0.9456521739130435,
+            "confidence_cutoff": 0.7575062308675077
+          }
+        },
+        "score_mae": 0.47883759857285796,
+        "ranked_probability_score": 0.0706866240715662
+      },
+      "stock_latency_ms": {
+        "median": 111.56456300000173,
+        "p95": 282.3598624498345
+      },
+      "candidate_latency_ms": {
+        "median": 102.07850000097096,
+        "p95": 260.83913570000715
+      },
+      "exit_stats": {
+        "records": 1204,
+        "questions": 1468,
+        "exited_questions": 584,
+        "complete_record_exits": 375,
+        "verifier_vetoes": 377
+      }
+    },
+    "transfer": {
+      "stock_clean": {
+        "n": 656,
+        "nll": 0.47093879765958874,
+        "acc": 0.8003048780487805,
+        "ece": 0.0363501766866403,
+        "brier": 0.2643640386119064,
+        "mean_conf": 0.8334218842742306,
+        "confident_error_rate": 0.025914634146341462,
+        "coverage_at_0_9": 0.5670731707317073,
+        "accuracy_at_0_9": 0.9543010752688172,
+        "coverage_at_5pct_error": 0.5807926829268293,
+        "coverage_at_1pct_error": 0.2926829268292683,
+        "aurc": 0.05811287199825864,
+        "error_rate_at_0_9": 0.0456989247311828,
+        "confidence_bias": 0.03311700622545011,
+        "top_bins": {
+          "0.9": {
+            "n": 372,
+            "errors": 17,
+            "error_rate": 0.0456989247311828
+          },
+          "0.95": {
+            "n": 296,
+            "errors": 13,
+            "error_rate": 0.04391891891891892
+          },
+          "0.99": {
+            "n": 66,
+            "errors": 0,
+            "error_rate": 0.0
+          }
+        },
+        "selective": {
+          "0.5": {
+            "coverage": 0.5,
+            "accuracy": 0.9573170731707317,
+            "confidence_cutoff": 0.9354680211783364
+          },
+          "0.8": {
+            "coverage": 0.801829268292683,
+            "accuracy": 0.8840304182509505,
+            "confidence_cutoff": 0.6538271514280348
+          }
+        },
+        "score_mae": 0.38385520976055365,
+        "ranked_probability_score": 0.12884433585056415
+      },
+      "candidate_clean": {
+        "n": 656,
+        "nll": 0.4679103414209441,
+        "acc": 0.8003048780487805,
+        "ece": 0.042271058889256585,
+        "brier": 0.263964175673859,
+        "mean_conf": 0.8393387755096418,
+        "confident_error_rate": 0.028963414634146343,
+        "coverage_at_0_9": 0.600609756097561,
+        "accuracy_at_0_9": 0.9517766497461929,
+        "coverage_at_5pct_error": 0.6021341463414634,
+        "coverage_at_1pct_error": 0.33689024390243905,
+        "aurc": 0.05561918134970145,
+        "error_rate_at_0_9": 0.048223350253807105,
+        "confidence_bias": 0.03903389746086128,
+        "top_bins": {
+          "0.9": {
+            "n": 394,
+            "errors": 19,
+            "error_rate": 0.048223350253807105
+          },
+          "0.95": {
+            "n": 321,
+            "errors": 13,
+            "error_rate": 0.040498442367601244
+          },
+          "0.99": {
+            "n": 94,
+            "errors": 0,
+            "error_rate": 0.0
+          }
+        },
+        "selective": {
+          "0.5": {
+            "coverage": 0.5,
+            "accuracy": 0.9603658536585366,
+            "confidence_cutoff": 0.9481747600746528
+          },
+          "0.8": {
+            "coverage": 0.801829268292683,
+            "accuracy": 0.8840304182509505,
+            "confidence_cutoff": 0.6537735060981961
+          }
+        },
+        "score_mae": 0.38388106806062383,
+        "ranked_probability_score": 0.12883242535256917
+      },
+      "stock_latency_ms": {
+        "median": 104.81179149996933,
+        "p95": 128.50812865012813
+      },
+      "candidate_latency_ms": {
+        "median": 100.02295800040883,
+        "p95": 119.2752919000668
+      },
+      "exit_stats": {
+        "records": 764,
+        "questions": 764,
+        "exited_questions": 149,
+        "complete_record_exits": 149,
+        "verifier_vetoes": 263
+      }
+    }
+  },
+  "limits": [
+    "The 2x complete-request median result is for one fixed five-question workload on an M5 Pro.",
+    "Three of 50 cold HTTP candidate requests deferred; cold p95 was about 175 ms.",
+    "The varied decision-v7 development median improved only about 1.09x.",
+    "Locked-test ECE was higher by 0.00069 and 0.00775; paired intervals include zero.",
+    "The heads were not trained or evaluated for computer-use actions."
+  ]
+}

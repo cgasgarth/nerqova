@@ -2,7 +2,7 @@
 
 A model-specific Apple Silicon runtime for Kev-style decisions. The first target is the **same released Kev-4B checkpoint**. A packed Metal recurrence preserves the previous scorer's probabilities. An optional trained early exit uses the same backbone and continues uncertain questions through all layers. It uses Kev's typed System One API and frozen evaluation suites through a pinned source revision.
 
-**Status:** research. The default Nerqova path is effectively tied with stock Kev MLX. The optional packed Metal DeltaNet kernel has a measured same-weight gain. The [conditional exit heads](models/README.md) are an opt-in speed and quality candidate; their performance varies with how many questions defer.
+**Status:** research. The default Nerqova path is effectively tied with stock Kev MLX. The optional packed Metal DeltaNet kernel has a measured same-weight gain. The [conditional exit heads](models/README.md) exceeded **2× median complete-request speed** on the fixed M5 Pro workload in clean local and HTTP runs. Their performance varies with how many questions defer; the varied decision-v7 median improved about **1.09×**. See the [exact-SHA evidence](evidence/conditional-exit-e23ddd3.json).
 
 At clean commit `601727c`, the packed path was about **6% faster** than stock Kev MLX for complete local and HTTP decisions on a fixed M5 Pro request, with zero choice flips across the frozen development suites. See the [measurement and limits](docs/performance.md#packed-metal-result) and [evidence](evidence/packed-metal-601727c.json).
 
@@ -65,12 +65,14 @@ uv run python -m nerqova.serve --run jaredpalmer/kev-4b --packed-delta --port 80
 Use the conditional exit with its [pinned heads and gate](models/README.md):
 
 ```bash
+mkdir -p runs/weights
+gh release download v0.1.0 --repo cgasgarth/nerqova --pattern 'kev4b-*' --dir runs/weights
 uv run python -m nerqova.serve --run jaredpalmer/kev-4b --packed-delta \
   --exit-head runs/weights/kev4b-exit16-pair.pt --exit-threshold 0.90 \
   --verify-head runs/weights/kev4b-verify8-pair.pt --verify-threshold 0.26
 ```
 
-The transfer-v4 development [baseline report](evidence/kev4b-transfer-v4-development.json) records 0.800 accuracy, 0.264 Brier, and 0.036 ECE on 656 knowable questions. Its Hub checkpoint request was not pinned to a commit, so rerun the comparison with pinned revisions before a release claim. The locked test remains closed until a final runtime has passed development checks.
+The [conditional-exit evidence](evidence/conditional-exit-e23ddd3.json) records the pinned checkpoint and input hashes, clean local and HTTP samples, and the one-time locked comparison. It found **zero choice flips across 2,204 locked questions** with full coverage. Accuracy and Brier matched or improved stock Kev; ECE was slightly higher. The [performance report](docs/performance.md#conditional-exit-candidate) gives the exact values and limits.
 
 
 ## License

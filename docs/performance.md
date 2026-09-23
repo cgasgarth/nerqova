@@ -49,22 +49,35 @@ The two [trained heads](../models/README.md) use the same packed Kev-4B backbone
 
 On the frozen decision-v7 calibration partition, the gate exited 31.0% of questions and 21.6% of complete requests. It matched full Kev accuracy, had no teacher choice flips among accepted exits, and slightly improved Brier, ECE, and NLL. Neither head saw calibration records during training.
 
-An **exploratory** fixed-request local block and a separate HTTP block used the same 275-token/five-question request. The HTTP new-state block varied the state text to force cache misses:
+Two clean-code blocks per engine ran in stock/candidate/candidate/stock order at runtime commit `e23ddd3d17929ec08e247988ac063fb2e3db7176`, with 50 repetitions after 10 warmups. The fixed request had about 275 state tokens and five three-option questions. HTTP new-state requests used distinct state text to force cache misses:
 
 | Median complete decision | Stock Kev MLX | Conditional Nerqova | Speedup |
 |---|---:|---:|---:|
-| Local, new state | 194.75 ms | 91.91 ms | 2.119× |
-| Local, cached state | 78.92 ms | 37.70 ms | 2.093× |
-| HTTP, new state | 196.13 ms | 94.84 ms | 2.068× |
-| HTTP, cached state | 80.21 ms | 39.55 ms | 2.028× |
+| Local A, new state | 195.40 ms | 92.45 ms | 2.114× |
+| Local A, cached state | 79.28 ms | 38.00 ms | 2.086× |
+| Local B, new state | 195.94 ms | 92.53 ms | 2.118× |
+| Local B, cached state | 79.44 ms | 38.16 ms | 2.082× |
+| HTTP A, new state | 194.18 ms | 95.23 ms | 2.039× |
+| HTTP A, cached state | 81.10 ms | 39.76 ms | 2.040× |
+| HTTP B, new state | 197.06 ms | 95.16 ms | 2.071× |
+| HTTP B, cached state | 80.32 ms | 39.84 ms | 2.016× |
 
-All five final choices matched. These exploratory runs cross code revisions and include a dirty checkout, so they are not a release speed claim. Three of 50 cold HTTP requests deferred; the candidate's cold p95 was **175.48 ms**. A clean-commit 50-repetition local and HTTP comparison is required.
+All five final choices matched in every block. Both complete-request medians cleared the predeclared **2.0×** target in both run orders. Some distinct cold states deferred; the candidate's cold HTTP p95 was **174.73–175.78 ms**, so the tail did not gain 2×. The [versioned evidence](../evidence/conditional-exit-e23ddd3.json) keeps input hashes, checkpoint and head hashes, runtime versions, and all timing samples.
 
-On frozen development records, stock Kev MLX and the conditional scorer had **zero choice flips** across 1,468 decision-v7 and 764 transfer-v4 questions, with full coverage. Clean-question accuracy was unchanged: 0.87184 on decision-v7 and 0.80030 on transfer-v4. Brier improved from 0.18478 to 0.18423 and from 0.26436 to 0.26396; NLL also improved. ECE rose from 0.02318 to 0.02413 and from 0.03635 to 0.04227. A 1,000-resample paired record-cluster bootstrap gave ECE-difference 95% intervals of `[-0.00206, 0.00334]` and `[-0.00172, 0.00837]`; both include zero. The locked test remains closed at this stage.
+On frozen development records, stock Kev MLX and the conditional scorer had **zero choice flips** across 1,468 decision-v7 and 764 transfer-v4 questions, with full coverage. Clean-question accuracy was unchanged: 0.87184 on decision-v7 and 0.80030 on transfer-v4. Brier improved from 0.18478 to 0.18423 and from 0.26436 to 0.26396; NLL also improved. ECE rose from 0.02318 to 0.02413 and from 0.03635 to 0.04227. A 1,000-resample paired record-cluster bootstrap gave ECE-difference 95% intervals of `[-0.00206, 0.00334]` and `[-0.00172, 0.00837]`; both include zero.
 
-The verifier is conservative. It fully exited 375/1,204 decision-v7 development requests and 149/764 transfer-v4 requests. On the varied decision-v7 set, median model time improved only from 111.56 to 102.08 ms (**1.09×**). The fixed-request speedup must not be generalized to every request. The exit and verifier selection used calibration; development results remain an exploratory check until the final locked test.
+The verifier is conservative. It fully exited 375/1,204 decision-v7 development requests and 149/764 transfer-v4 requests. On the varied decision-v7 set, median model time improved only from 111.56 to 102.08 ms (**1.09×**). The fixed-request speedup must not be generalized to every request.
 
-Freeze the checkpoint, both head artifacts, and gate before the one locked-test read. The confirmatory quality limits are full coverage, no clean accuracy loss, at most **0.005** higher Brier and **0.010** higher ECE on each suite, with the paired ECE interval including zero. The fixed-request speed target is a **2.0×** or greater median improvement for both new and cached states, locally and through HTTP, in 50-repetition clean-code runs. A failed locked result must be reported, not tuned against that partition.
+The checkpoint, heads, and gate were frozen before the **one-time locked-test comparison**. Its predeclared limits were full coverage, no clean accuracy loss, at most **0.005** higher Brier and **0.010** higher ECE on each suite, with the paired ECE interval including zero. The locked result met all limits and had **zero choice flips across 2,204 questions**:
+
+| Locked clean metric | Decision stock → Nerqova | Transfer stock → Nerqova |
+|---|---:|---:|
+| Accuracy | 0.87167 → 0.87167 | 0.83384 → 0.83384 |
+| Brier, lower is better | 0.18895 → 0.18837 | 0.23205 → 0.23155 |
+| ECE, lower is better | 0.01924 → 0.01993 | 0.03556 → 0.04332 |
+| NLL, lower is better | 0.35923 → 0.35778 | 0.42642 → 0.42378 |
+
+The paired ECE-difference 95% intervals were `[-0.00232, 0.00324]` and `[-0.00607, 0.00975]`; both include zero. Every requested question was scored, with no rejection or truncation. The locked sets were not used to change the model or gate.
 
 ## Rejected probes
 
