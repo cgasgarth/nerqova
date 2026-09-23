@@ -1,6 +1,7 @@
-"""Measure model-only Kev decisions on the local Apple GPU.
+"""Compare stock Kev MLX and Nerqova model-only decisions on the local GPU.
 
-    uv run python scripts/bench_decisions.py --run runs/student35-2b-v7/00-trial-0/checkpoint
+    uv run python scripts/bench_decisions.py --engine kev-mlx --run jaredpalmer/kev-4b
+    uv run python scripts/bench_decisions.py --engine nerqova --run jaredpalmer/kev-4b
 
 The fixed workload has a roughly 270-token state and five three-option questions.
 Both paths take a pre-encoded request and return host-visible probabilities, so
@@ -17,9 +18,10 @@ import subprocess
 import time
 from pathlib import Path
 
+from kev.checkpoint import Checkpoint, LoadOptions
 from kev.model import user_tokens
 from kev.suite import digest
-from nerqova.checkpoint import load_student
+from nerqova.checkpoint import load_model
 
 
 def command(*args):
@@ -65,6 +67,7 @@ def measure(fn, reps, warmups=10):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run", default="jaredpalmer/kev-4b")
+    parser.add_argument("--engine", choices=["kev-mlx", "nerqova"], default="nerqova")
     parser.add_argument("--state-tokens", type=int, default=270)
     parser.add_argument("--questions", type=int, default=5)
     parser.add_argument("--reps", type=int, default=100)
@@ -74,10 +77,15 @@ def main():
     if args.state_tokens < 1 or args.questions < 1 or args.reps < 1 or args.warmups < 0:
         parser.error("state-tokens, questions and reps must be positive; warmups must be nonnegative")
 
-    checkpoint, tok, model = load_student(args.run)
+    if args.engine == "kev-mlx":
+        checkpoint = Checkpoint(args.run)
+        tok, model = checkpoint.load("mps", LoadOptions(backend="mlx"))
+    else:
+        checkpoint, tok, model = load_model(args.run)
     enc = model.encode(tok, workload(tok, args.state_tokens, args.questions))
-    _, prefix = model.probs_and_prefix(enc)
+    fixture_probabilities, prefix = model.probs_and_prefix(enc)
     result = {
+        "engine": args.engine,
         "run": args.run,
         "checkpoint_revision": Path(checkpoint.path).name,
         "base": checkpoint.meta.base,
@@ -98,6 +106,7 @@ def main():
         "questions": len(enc["decide_idx"]),
         "warmups": args.warmups,
         "encoded_request_sha256": hashlib.sha256(json.dumps(enc["ids"]).encode()).hexdigest(),
+        "fixture_probabilities": [p.tolist() for p in fixture_probabilities],
         "latency_ms": {
             "new_state": measure(lambda: model.probs(enc), args.reps, args.warmups),
             "cached_state": measure(lambda: model.probs_with_prefix(enc, prefix), args.reps, args.warmups),

@@ -15,9 +15,9 @@ pytestmark = pytest.mark.model
     reason="requires Apple Silicon and NERQOVA_TEST_RUN",
 )
 def test_prefix_cache_keeps_questions_isolated():
-    from nerqova.checkpoint import load_student
+    from nerqova.checkpoint import load_model
 
-    _, tok, model = load_student(os.environ["NERQOVA_TEST_RUN"])
+    _, tok, model = load_model(os.environ["NERQOVA_TEST_RUN"])
     questions = [
         {"instr": "Which color was ordered?", "options": ["Blue", "Red", "Green"], "label": 0},
         {"instr": "Which color arrived?", "options": ["Blue", "Red"], "label": 1},

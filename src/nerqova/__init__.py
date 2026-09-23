@@ -1,5 +1,5 @@
-"""Fast decision scoring for Kev-style student checkpoints."""
+"""Model-specific decision inference on Apple Silicon."""
 
-from .checkpoint import load_student
+from .checkpoint import load_model
 
-__all__ = ["load_student"]
+__all__ = ["load_model"]

@@ -1,11 +1,11 @@
-"""Load a Kev-format student checkpoint into the model-specific MLX scorer."""
+"""Load Kev-format weights into Nerqova's model-specific MLX scorer."""
 
 from kev.checkpoint import Checkpoint, resolve_run
 from kev.model import load_tokenizer, pad_id
 
 
-def load_student(run, *, temperature=None, lora_scale=1.0):
-    """Return (checkpoint, tokenizer, scorer) for a trained Qwen3/3.5 student."""
+def load_model(run, *, temperature=None, lora_scale=1.0):
+    """Return (checkpoint, tokenizer, scorer) with unchanged Kev weights."""
     from .mlx_model import MLXDecisionModel, merge_lora
 
     checkpoint = Checkpoint(run)

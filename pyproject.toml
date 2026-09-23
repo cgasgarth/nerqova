@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nerqova"
 version = "0.1.0"
-description = "Fast local decision scoring and student training against a pinned Kev baseline"
+description = "Model-specific Apple Silicon inference for Kev-style decisions"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]

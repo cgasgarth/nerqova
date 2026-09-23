@@ -1,9 +1,9 @@
-"""Calibrate and score the MLX service path on frozen development partitions.
+"""Score one engine with unchanged Kev weights on frozen development suites.
 
-    uv run python scripts/evaluate.py --run runs/student35-2b-v7/00-trial-0/checkpoint \
-      --out runs/student35-2b-v7-mlx
+    uv run python scripts/evaluate.py --engine kev-mlx --run jaredpalmer/kev-4b --out runs/kev-mlx-dev
+    uv run python scripts/evaluate.py --engine nerqova --run jaredpalmer/kev-4b --out runs/nerqova-dev
 
-This script does not read the locked test partition.
+The checkpoint's served temperature is used. This script never reads locked test data.
 """
 
 import argparse
@@ -12,7 +12,8 @@ import subprocess
 from pathlib import Path
 
 from kev.benchmark import evaluate_records
-from kev.metrics import fit_temperature
+from kev.checkpoint import Checkpoint, LoadOptions
+from kev.predictors import LocalPredictor
 from kev.suite import CONTEXT, digest, load_split, read_manifest, write_json
 
 from nerqova.predictor import MLXPredictor
@@ -24,53 +25,54 @@ def git(*args):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--run", required=True)
+    parser.add_argument("--engine", choices=["kev-mlx", "nerqova"], required=True)
+    parser.add_argument("--run", default="jaredpalmer/kev-4b")
     parser.add_argument("--suite", type=Path, default=Path("evals/v7/decision-v7"))
     parser.add_argument("--transfer", type=Path, default=Path("evals/v4/transfer-v4"))
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
 
+    checkpoint = Checkpoint(args.run)
+    suite_manifest = read_manifest(args.suite)
+    transfer_manifest = read_manifest(args.transfer)
     args.out.mkdir(parents=True, exist_ok=False)
-    predictor = MLXPredictor(args.run, context=read_manifest(args.suite)["context"])
-    calibration, calibration_rows = evaluate_records(
-        load_split(args.suite, "calibration"), predictor, args.out / "calibration"
+    predictor = (
+        MLXPredictor(args.run, context=suite_manifest.get("context", CONTEXT))
+        if args.engine == "nerqova"
+        else LocalPredictor(args.run, "mps", LoadOptions(backend="mlx"),
+                            context=suite_manifest.get("context", CONTEXT))
     )
-    temperature = fit_temperature(calibration_rows, aggregation="micro")
-    predictor.set_temperature(temperature)
 
     development, _ = evaluate_records(
         load_split(args.suite, "development"), predictor, args.out / "development",
-        heldout_sources=tuple(read_manifest(args.suite).get("holdout_sources", [])),
+        heldout_sources=tuple(suite_manifest.get("holdout_sources", [])),
     )
-    transfer_suite = read_manifest(args.transfer)
-    predictor.context = transfer_suite.get("context", CONTEXT)
+    predictor.context = transfer_manifest.get("context", CONTEXT)
     transfer, _ = evaluate_records(
         load_split(args.transfer, "development"), predictor, args.out / "transfer",
-        heldout_sources=tuple(transfer_suite.get("holdout_sources", [])),
-        skip_overlong=bool(transfer_suite.get("eval_only")),
+        heldout_sources=tuple(transfer_manifest.get("holdout_sources", [])),
+        skip_overlong=bool(transfer_manifest.get("eval_only")),
     )
     report = {
         "run": args.run,
-        "backend": "mlx",
-        "base": predictor.checkpoint.meta.base,
-        "base_revision": predictor.checkpoint.meta.base_revision,
-        "checkpoint": str(predictor.run),
-        "adapter_sha256": digest(Path(predictor.run) / "adapter_model.safetensors"),
-        "head_sha256": digest(Path(predictor.run) / "head.pt"),
+        "engine": args.engine,
+        "checkpoint": str(checkpoint.path),
+        "base": checkpoint.meta.base,
+        "base_revision": checkpoint.meta.base_revision,
+        "adapter_sha256": digest(checkpoint.file("adapter_model.safetensors")),
+        "head_sha256": digest(checkpoint.file("head.pt")),
+        "served_temperature": predictor.temperature,
         "code_sha": git("rev-parse", "HEAD"),
         "code_dirty": bool(git("status", "--porcelain")),
         "suite_sha256": digest(args.suite / "manifest.json"),
         "transfer_suite_sha256": digest(args.transfer / "manifest.json"),
-        "calibration_rows_sha256": digest(args.out / "calibration" / "rows.json"),
-        "temperature": temperature,
-        "calibration_coverage": calibration["coverage"],
         "development": {"clean": development["clean"], "coverage": development["coverage"]},
         "transfer": {"clean": transfer["clean"], "coverage": transfer["coverage"],
                      "paired_flip": transfer["paired_flip"], "unknowable": transfer["unknowable"]},
         "locked_test_read": False,
     }
     write_json(args.out / "result.json", report)
-    print(json.dumps({"temperature": temperature, "development": report["development"],
+    print(json.dumps({"engine": args.engine, "development": report["development"],
                       "transfer": report["transfer"]}, indent=2))
 
 

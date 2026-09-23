@@ -3,20 +3,16 @@
 from kev.predictors import LocalPredictor
 from kev.suite import CONTEXT
 
-from .checkpoint import load_student
+from .checkpoint import load_model
 
 
 class MLXPredictor(LocalPredictor):
     """Score Kev records through the same MLX path used by Nerqova's server."""
 
     def __init__(self, run, *, context=CONTEXT):
-        checkpoint, self.tok, self.model = load_student(run, temperature=1.0)
+        checkpoint, self.tok, self.model = load_model(run)
         self.checkpoint = checkpoint
         self.run = checkpoint.path
         self.device = "mps"
         self.context = context
-        self.temperature = 1.0
-
-    def set_temperature(self, temperature):
-        self.model.head.temperature = temperature
-        self.temperature = temperature
+        self.temperature = self.model.head.temperature

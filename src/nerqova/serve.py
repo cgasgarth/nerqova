@@ -1,8 +1,8 @@
-"""Serve a trained student through Kev's typed System One HTTP API."""
+"""Serve a Kev-format checkpoint through Nerqova's Apple Silicon scorer."""
 
 import argparse
 
-from .checkpoint import load_student
+from .checkpoint import load_model
 
 
 def main():
@@ -15,7 +15,7 @@ def main():
     import uvicorn
     from kev.serve import Server, app
 
-    checkpoint, tok, model = load_student(args.run)
+    checkpoint, tok, model = load_model(args.run)
     app.state.server = Server(checkpoint, tok, model, "mps")
     uvicorn.run(app, host=args.host, port=args.port)
 

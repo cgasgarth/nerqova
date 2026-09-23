@@ -1,6 +1,5 @@
 Nerqova includes code and frozen evaluation manifests adapted from
 Jared Palmer's Kev project (https://github.com/jaredpalmer/kev), Apache-2.0,
-at commit 557598fced1dada75dfbf36ed144dce309ac6ceb. The date and
-unknowable training examples under evals/night2 come from that project.
+at commit 557598fced1dada75dfbf36ed144dce309ac6ceb.
 
 The original copyright and license terms are preserved in LICENSE.
