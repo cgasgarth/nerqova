@@ -38,7 +38,7 @@ def main():
     args.out.mkdir(parents=True, exist_ok=False)
     predictor = (
         MLXPredictor(args.run, context=suite_manifest.get("context", CONTEXT))
-        if args.engine == "nerqova"
+        if args.engine != "kev-mlx"
         else LocalPredictor(args.run, "mps", LoadOptions(backend="mlx"),
                             context=suite_manifest.get("context", CONTEXT))
     )

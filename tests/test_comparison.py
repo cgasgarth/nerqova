@@ -1,6 +1,6 @@
 import pytest
 
-from nerqova.comparison import compare_benchmarks, compare_rows
+from nerqova.comparison import compare_benchmarks, compare_evaluations, compare_latency, compare_rows
 
 
 def report(engine, p):
@@ -19,6 +19,7 @@ def test_comparison_requires_identical_checkpoint_and_request():
     result = compare_benchmarks(reference, candidate)
     assert result["choice_flips"] == 0
     assert result["new_state_speedup"] == result["cached_state_speedup"] == 2
+    assert compare_latency(reference, candidate)["cached_state_speedup"] == 2
     candidate["head_sha256"] = "other"
     with pytest.raises(ValueError, match="head_sha256"):
         compare_benchmarks(reference, candidate)
@@ -37,3 +38,17 @@ def test_row_comparison_aligns_question_ids_and_catches_choice_flip():
     assert result["max_probability_delta"] == pytest.approx(0.02)
     with pytest.raises(ValueError, match="rows differ"):
         compare_rows(baseline, changed[:1])
+
+
+def test_evaluation_comparison_requires_same_served_temperature():
+    def summary(temperature):
+        return {"checkpoint": "same", "base_revision": "base", "adapter_sha256": "adapter",
+                "head_sha256": "head", "served_temperature": temperature,
+                "suite_sha256": "suite", "transfer_suite_sha256": "transfer"}
+
+    row = {"id": "item", "question": "choice", "keys": ["a", "b"], "label": 0,
+           "source": "case", "variant": "clean", "p": [0.7, 0.3]}
+    rows = {"development": [row], "transfer": [row]}
+    assert compare_evaluations(summary(2.1), summary(2.1), rows, rows)["transfer"]["choice_flips"] == 0
+    with pytest.raises(ValueError, match="served_temperature"):
+        compare_evaluations(summary(2.1), summary(1.0), rows, rows)

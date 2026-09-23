@@ -18,3 +18,15 @@ Earlier barrier-instrumented profiling of the cached Kev-4B branch attributed ab
 4. Measure pre-encoded model time, complete local decision time, and HTTP latency separately. Alternate baseline and candidate runs on a quiet GPU. Record pinned checkpoint and code hashes, hardware, runtime versions, median, and p95.
 
 The first goal is a **measured same-weight speedup**. The stretch target is at least 2× lower complete decision latency. Do not claim that target until the full path passes the correctness gate and repeated timing runs.
+
+## Rejected probes
+
+The following short M5 Pro probes used the same Kev-4B weights. They are diagnostic, not release benchmarks. Their code paths were removed after the full request failed the gate.
+
+| Change | Isolated result | Full fixed request |
+|---|---|---|
+| Fused 2560-wide residual add and RMSNorm Metal kernel | 1.35× faster on a 275-token tensor; slower on the short branch | About 1.00× stock MLX; maximum probability difference 0.0035 |
+| DeltaNet Metal threadgroup rows 4 → 8, 16, 32 | No improvement over MLX-LM's 4-row launch | No full-model run after the isolated loss |
+| Four DeltaNet input projections packed into one matrix | 1.06–1.08× faster on one layer | About 0.93× stock MLX; maximum probability difference 0.0066 |
+
+These results show why a kernel-only improvement cannot establish a decision-speed gain. Use bounded CLI measurements to select the next full-request bottleneck. A three-request Xcode GPU capture expanded to 19 GB on disk and 124 GB during replay; that method is excluded from further work on this Mac.

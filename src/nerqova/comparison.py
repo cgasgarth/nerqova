@@ -5,10 +5,18 @@ IDENTITY = ("checkpoint_revision", "base_revision", "adapter_sha256", "head_sha2
             "temperature", "encoded_request_sha256")
 
 
-def compare_benchmarks(reference, candidate):
+def compare_latency(reference, candidate):
     for field in IDENTITY:
         if reference[field] != candidate[field]:
             raise ValueError(f"benchmark {field} differs")
+    return {
+        "new_state_speedup": reference["latency_ms"]["new_state"]["median"] / candidate["latency_ms"]["new_state"]["median"],
+        "cached_state_speedup": reference["latency_ms"]["cached_state"]["median"] / candidate["latency_ms"]["cached_state"]["median"],
+    }
+
+
+def compare_benchmarks(reference, candidate):
+    speed = compare_latency(reference, candidate)
     baseline = reference["fixture_probabilities"]
     changed = candidate["fixture_probabilities"]
     if len(baseline) != len(changed) or any(len(a) != len(b) for a, b in zip(baseline, changed)):
@@ -21,8 +29,7 @@ def compare_benchmarks(reference, candidate):
         "questions": len(baseline),
         "max_probability_delta": max(deltas),
         "choice_flips": flips,
-        "new_state_speedup": reference["latency_ms"]["new_state"]["median"] / candidate["latency_ms"]["new_state"]["median"],
-        "cached_state_speedup": reference["latency_ms"]["cached_state"]["median"] / candidate["latency_ms"]["cached_state"]["median"],
+        **speed,
     }
 
 
@@ -48,3 +55,15 @@ def compare_rows(reference, candidate):
         flips += max(range(len(first["p"])), key=first["p"].__getitem__) != max(
             range(len(second["p"])), key=second["p"].__getitem__)
     return {"questions": len(baseline), "max_probability_delta": max_delta, "choice_flips": flips}
+
+
+def compare_evaluations(reference, candidate, reference_rows, candidate_rows):
+    identity = ("checkpoint", "base_revision", "adapter_sha256", "head_sha256",
+                "served_temperature", "suite_sha256", "transfer_suite_sha256")
+    for field in identity:
+        if reference[field] != candidate[field]:
+            raise ValueError(f"evaluation {field} differs")
+    if set(reference_rows) != {"development", "transfer"} or set(candidate_rows) != set(reference_rows):
+        raise ValueError("development and transfer rows are required")
+    return {part: compare_rows(reference_rows[part], candidate_rows[part])
+            for part in ("development", "transfer")}

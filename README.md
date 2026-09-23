@@ -39,6 +39,10 @@ uv run python scripts/bench_decisions.py --engine nerqova --run jaredpalmer/kev-
 
 The reports include checkpoint and input hashes, runtime versions, fully materialized probability vectors, and new-state and cached-state model times. They exclude encoding, response formatting, and HTTP. The release gate requires complete local and HTTP times too.
 
+Use `scripts/bench_complete.py` for complete local decision time.
+
+Compare two complete local reports with `uv run python scripts/compare_engines.py --complete runs/kev-mlx-complete.json runs/nerqova-complete.json`.
+
 Evaluate the served probabilities on frozen development partitions:
 
 ```bash

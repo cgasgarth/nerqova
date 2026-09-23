@@ -19,31 +19,13 @@ import time
 from pathlib import Path
 
 from kev.checkpoint import Checkpoint, LoadOptions
-from kev.model import user_tokens
 from kev.suite import digest
 from nerqova.checkpoint import load_model
+from nerqova.workload import workload
 
 
 def command(*args):
     return subprocess.check_output(args, text=True).strip()
-
-
-def workload(tok, state_tokens, questions):
-    sentence = "Customer ordered a blue shirt on Monday, paid for express delivery, and received a red shirt on Friday. "
-    state = ""
-    while len(user_tokens(tok, state)) < state_tokens:
-        state += sentence
-    return {
-        "state": state,
-        "questions": [
-            {
-                "instr": f"Which action best fits customer request {i}?",
-                "options": ["Refund the item", "Replace it with the blue shirt", "Ask for more information"],
-                "label": 1,
-            }
-            for i in range(questions)
-        ],
-    }
 
 
 def measure(fn, reps, warmups=10):
