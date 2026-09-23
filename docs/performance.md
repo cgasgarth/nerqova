@@ -6,7 +6,16 @@ Kev scores all options in one pass. It does not write a sequence of answer token
 
 ## Measured starting point
 
-On one quiet M5 Pro smoke run with a roughly 275-token state and five three-option questions, stock Kev MLX took **191 ms** for a new state and **77 ms** with a cached state. Nerqova's current MLX backbone and native pointer head took **189 ms** and **75 ms**. The encoded input and checkpoint matched; all five choices matched; maximum probability difference was **0.00022**. These ten-repetition smoke numbers locate the starting point. They are not a release benchmark.
+On one quiet M5 Pro run at code revision `7ca9122`, with 50 repetitions after 10 warmups, a roughly 275-token state and five three-option questions:
+
+| Boundary, median ms | Stock Kev MLX | Nerqova |
+|---|---:|---:|
+| Pre-encoded model, new state | 192.75 | 193.96 |
+| Pre-encoded model, cached state | 77.46 | 78.35 |
+| Complete local decision, new state | 197.63 | 196.30 |
+| Complete local decision, cached state | 81.29 | 79.83 |
+
+The input and checkpoint hashes matched. All five choices matched; maximum probability difference was 0.00022. The two engines are effectively tied at this stage. These are one quiet block per engine, so they establish a starting point rather than a release speed claim. HTTP timing remains to be measured.
 
 Earlier barrier-instrumented profiling of the cached Kev-4B branch attributed about 45 ms to its 32 MLPs, 37 ms to its 24 Gated DeltaNet layers, and 9.5 ms to its eight full-attention layers. Barriers add time, so those parts do not sum to the uninstrumented request. The first custom kernel must target a large measured part and preserve model output.
 

@@ -7,7 +7,7 @@ def report(engine, p):
     return {
         "engine": engine, "checkpoint_revision": "revision", "base_revision": "base",
         "adapter_sha256": "adapter", "head_sha256": "head", "temperature": 2.1,
-        "encoded_request_sha256": "request", "fixture_probabilities": [p],
+        "encoded_request_sha256": "request", "code_sha": "commit", "fixture_probabilities": [p],
         "latency_ms": {"new_state": {"median": 200 if engine == "kev-mlx" else 100},
                        "cached_state": {"median": 80 if engine == "kev-mlx" else 40}},
     }

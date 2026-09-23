@@ -25,7 +25,7 @@ def git(*args):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--engine", choices=["kev-mlx", "nerqova"], required=True)
+    parser.add_argument("--engine", choices=["kev-mlx", "nerqova", "nerqova-unmasked", "nerqova-packed"], required=True)
     parser.add_argument("--run", default="jaredpalmer/kev-4b")
     parser.add_argument("--suite", type=Path, default=Path("evals/v7/decision-v7"))
     parser.add_argument("--transfer", type=Path, default=Path("evals/v4/transfer-v4"))
@@ -37,7 +37,11 @@ def main():
     transfer_manifest = read_manifest(args.transfer)
     args.out.mkdir(parents=True, exist_ok=False)
     predictor = (
-        MLXPredictor(args.run, context=suite_manifest.get("context", CONTEXT))
+        MLXPredictor(
+            args.run, context=suite_manifest.get("context", CONTEXT),
+            unmasked_branches=args.engine == "nerqova-unmasked",
+            packed_delta=args.engine == "nerqova-packed",
+        )
         if args.engine != "kev-mlx"
         else LocalPredictor(args.run, "mps", LoadOptions(backend="mlx"),
                             context=suite_manifest.get("context", CONTEXT))

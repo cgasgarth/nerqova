@@ -9,8 +9,11 @@ from .checkpoint import load_model
 class MLXPredictor(LocalPredictor):
     """Score Kev records through the same MLX path used by Nerqova's server."""
 
-    def __init__(self, run, *, context=CONTEXT):
-        checkpoint, self.tok, self.model = load_model(run)
+    def __init__(self, run, *, context=CONTEXT,
+                 unmasked_branches=False, packed_delta=False):
+        checkpoint, self.tok, self.model = load_model(
+            run, unmasked_branches=unmasked_branches, packed_delta=packed_delta
+        )
         self.checkpoint = checkpoint
         self.run = checkpoint.path
         self.device = "mps"

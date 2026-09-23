@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Model-specific Apple Silicon inference for Kev-style decisions"
 readme = "README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE"]
+license-files = ["LICENSE", "NOTICE", "third_party/mlx_lm_LICENSE"]
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "kev",

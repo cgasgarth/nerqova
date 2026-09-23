@@ -44,7 +44,7 @@ def measure(server, request, reps, warmups, new_state):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--engine", choices=["kev-mlx", "nerqova"], required=True)
+    parser.add_argument("--engine", choices=["kev-mlx", "nerqova", "nerqova-unmasked", "nerqova-packed"], required=True)
     parser.add_argument("--run", default="jaredpalmer/kev-4b")
     parser.add_argument("--state-tokens", type=int, default=270)
     parser.add_argument("--questions", type=int, default=5)
@@ -59,7 +59,10 @@ def main():
         checkpoint = Checkpoint(args.run)
         tok, model = checkpoint.load("mps", LoadOptions(backend="mlx"))
     else:
-        checkpoint, tok, model = load_model(args.run)
+        checkpoint, tok, model = load_model(
+            args.run, unmasked_branches=args.engine == "nerqova-unmasked",
+            packed_delta=args.engine == "nerqova-packed",
+        )
     example = workload(tok, args.state_tokens, args.questions)
     request = SystemOneRequest.model_validate({
         "state": example["state"],

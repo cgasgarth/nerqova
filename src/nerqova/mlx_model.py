@@ -12,7 +12,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from mlx.utils import tree_flatten
-from mlx_lm.models.cache import make_prompt_cache
+from mlx_lm.models.cache import ArraysCache, make_prompt_cache
 from mlx_lm.utils import load_model
 
 from kev.model import PointerHead, encode, rows_of, rows_per_pass
@@ -53,7 +53,7 @@ class MLXDecisionModel:
     backend, device, option_isolation = "mlx", "mlx", False
     prefix_min_tokens = 0   # kev.serve caches the state prefix for every request: on Metal the branch-only pass is always the cheaper one
 
-    def __init__(self, base_dir, pad_id, head_dim=256):
+    def __init__(self, base_dir, pad_id, head_dim=256, unmasked_branches=False):
         self.lm, _ = load_model(Path(base_dir))                       # weights as stored (bf16 for the Qwen3.5 bases)
         if self.lm.model_type == "qwen3_5":
             self.hybrid, self.text = True, self.lm.language_model.model
@@ -62,7 +62,23 @@ class MLXDecisionModel:
         else:
             raise ValueError(f"the MLX decision scorer supports Qwen3 and Qwen3.5, not {self.lm.model_type}")
         self.pad_id = pad_id
+        self.unmasked_branches = unmasked_branches
         self.head = PointerHead(self.text.embed_tokens.weight.shape[1], dp=head_dim).eval()
+
+    def enable_packed_delta(self):
+        if (not self.hybrid or len(self.text.layers) != 32
+                or self.text.embed_tokens.weight.shape[1] != 2560):
+            raise ValueError("packed DeltaNet supports only the Kev-4B Qwen3.5 backbone")
+        from .packed_delta import PackedGatedDeltaNet
+
+        for layer in self.text.layers:
+            if layer.is_linear:
+                if (layer.linear_attn.key_dim, layer.linear_attn.value_dim,
+                        layer.linear_attn.num_v_heads) != (2048, 4096, 32):
+                    raise ValueError("packed DeltaNet head dimensions differ from Kev-4B")
+                # LoRA is already merged. Rebind the method without copying or
+                # changing any loaded weight array.
+                layer.linear_attn.__class__ = PackedGatedDeltaNet
 
     @property
     def dtype(self):
@@ -141,6 +157,13 @@ class MLXDecisionModel:
         for start in range(0, len(rows), chunk):
             part = rows[start:start + chunk]
             batch = [type(c).merge([c] * len(part)) for c in cache]      # merge copies the arrays: `cache` is not mutated
+            if self.unmasked_branches:
+                # Every branch starts from the same prefix, so the merged recurrent
+                # caches have zero left padding. Right padding is after all scored
+                # anchors; the branch caches are discarded after this pass.
+                for state in batch:
+                    if isinstance(state, ArraysCache):
+                        state.left_padding = None
             h = self._hidden([r["ids"] for r in part], batch)
             out.append(self._batch_logits(h, [(r["decide"], r["opts"]) for r in part]))
         return self._host_batches(out)

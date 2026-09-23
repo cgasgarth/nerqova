@@ -2,7 +2,7 @@
 
 A model-specific Apple Silicon runtime for Kev-style decisions. The first target is the **same released Kev-4B checkpoint**, with faster hardware execution than the stock MLX path and matching probability vectors. It uses Kev's typed System One API and frozen evaluation suites through a pinned source revision.
 
-**Status:** research. The current Nerqova path uses MLX for the backbone and a native MLX pointer head. On one short fixed request it is only about 1% faster than stock Kev MLX. Custom model-specific Metal work is next; there is no large same-weight speed claim yet.
+**Status:** research. The default Nerqova path is effectively tied with stock Kev MLX. An optional packed Metal DeltaNet kernel now preserves its development outputs and has shown a modest same-weight speed gain. The larger speed target remains open.
 
 ## Goal
 
@@ -12,12 +12,14 @@ One state and a set of typed questions go in. A probability distribution for eac
 
 | Path | Purpose |
 |---|---|
-| `src/nerqova/` | Checkpoint loader, Apple Silicon scorer, and System One server |
+| `src/nerqova/` | Checkpoint loader, Apple Silicon scorer, packed Metal recurrence, and System One server |
 | `scripts/bench_decisions.py` | Same-request model latency for stock Kev MLX and Nerqova |
+| `scripts/bench_complete.py`, `scripts/bench_http.py` | Complete local and HTTP decision timing |
 | `scripts/evaluate.py` | Frozen development-suite quality for either engine |
 | `tests/` | Contract and checkpoint-backed parity checks |
 | `evals/` | Checksummed Kev suite manifests |
 | `evidence/` | Versioned baseline report |
+| `third_party/` | Required MIT license notice for the adapted MLX-LM kernel |
 
 The Kev source is pinned to commit `557598fced1dada75dfbf36ed144dce309ac6ceb`. Kev suite partitions are fetched from the dataset revision in that source and checked against the manifests. [NOTICE](NOTICE) records Kev attribution.
 
@@ -34,30 +36,30 @@ Measure each engine in its own quiet run:
 
 ```bash
 uv run python scripts/bench_decisions.py --engine kev-mlx --run jaredpalmer/kev-4b --out runs/kev-mlx-latency.json
-uv run python scripts/bench_decisions.py --engine nerqova --run jaredpalmer/kev-4b --out runs/nerqova-latency.json
+uv run python scripts/bench_decisions.py --engine nerqova-packed --run jaredpalmer/kev-4b --out runs/nerqova-packed-latency.json
 ```
 
 The reports include checkpoint and input hashes, runtime versions, fully materialized probability vectors, and new-state and cached-state model times. They exclude encoding, response formatting, and HTTP. The release gate requires complete local and HTTP times too.
 
 Use `scripts/bench_complete.py` for complete local decision time.
 
-Compare two complete local reports with `uv run python scripts/compare_engines.py --complete runs/kev-mlx-complete.json runs/nerqova-complete.json`.
+Compare two complete local reports with `uv run python scripts/compare_engines.py --complete runs/kev-mlx-complete.json runs/nerqova-packed-complete.json`.
 
 Evaluate the served probabilities on frozen development partitions:
 
 ```bash
 uv run python scripts/evaluate.py --engine kev-mlx --out runs/kev-mlx-development
-uv run python scripts/evaluate.py --engine nerqova --out runs/nerqova-development
+uv run python scripts/evaluate.py --engine nerqova-packed --out runs/nerqova-packed-development
 ```
 
 Serve the same checkpoint with Nerqova's scorer:
 
 ```bash
-uv run python -m nerqova.serve --run jaredpalmer/kev-4b --port 8009
+uv run python -m nerqova.serve --run jaredpalmer/kev-4b --packed-delta --port 8009
 ```
 
 The transfer-v4 development [baseline report](evidence/kev4b-transfer-v4-development.json) records 0.800 accuracy, 0.264 Brier, and 0.036 ECE on 656 knowable questions. Its Hub checkpoint request was not pinned to a commit, so rerun the comparison with pinned revisions before a release claim. The locked test remains closed until a final runtime has passed development checks.
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Apache-2.0 for Nerqova's original code. The packed kernel adapts MIT-licensed MLX-LM code. See [LICENSE](LICENSE), [NOTICE](NOTICE), and [the MLX-LM license](third_party/mlx_lm_LICENSE).

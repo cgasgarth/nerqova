@@ -2,13 +2,22 @@
 
 
 IDENTITY = ("checkpoint_revision", "base_revision", "adapter_sha256", "head_sha256",
-            "temperature", "encoded_request_sha256")
+            "temperature", "encoded_request_sha256", "code_sha")
 
 
 def compare_latency(reference, candidate):
     for field in IDENTITY:
         if reference[field] != candidate[field]:
             raise ValueError(f"benchmark {field} differs")
+    if "requests_sha256" in reference or "requests_sha256" in candidate:
+        if reference.get("requests_sha256") != candidate.get("requests_sha256"):
+            raise ValueError("benchmark HTTP requests differ")
+    if "choices" in reference or "choices" in candidate:
+        if reference.get("choices") != candidate.get("choices"):
+            raise ValueError("benchmark choices differ")
+    if "input_tokens" in reference or "input_tokens" in candidate:
+        if reference.get("input_tokens") != candidate.get("input_tokens"):
+            raise ValueError("benchmark input-token counts differ")
     return {
         "new_state_speedup": reference["latency_ms"]["new_state"]["median"] / candidate["latency_ms"]["new_state"]["median"],
         "cached_state_speedup": reference["latency_ms"]["cached_state"]["median"] / candidate["latency_ms"]["cached_state"]["median"],

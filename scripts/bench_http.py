@@ -1,0 +1,108 @@
+"""Time complete HTTP decisions against one resident local server.
+
+Run stock and Nerqova servers in separate quiet windows, then compare reports
+with scripts/compare_engines.py --complete. Unique states measure cache misses;
+one repeated state measures cache hits.
+"""
+
+import argparse
+import hashlib
+import json
+import statistics
+import subprocess
+import time
+from pathlib import Path
+
+import httpx
+
+from kev.api import SystemOneRequest, to_record
+from kev.checkpoint import Checkpoint
+from kev.model import encode, load_tokenizer
+from kev.suite import digest
+
+from nerqova.workload import workload
+
+
+def measure(client, payloads):
+    samples = []
+    last = None
+    for payload in payloads:
+        started = time.perf_counter()
+        response = client.post("/v1/systemone", json=payload)
+        response.raise_for_status()
+        last = response.json()
+        samples.append((time.perf_counter() - started) * 1000)
+    samples.sort()
+    return {"median": round(statistics.median(samples), 2),
+            "p95": round(samples[int((len(samples) - 1) * 0.95)], 2),
+            "samples": [round(value, 2) for value in samples]}, last
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--engine", choices=["kev-mlx", "nerqova-packed"], required=True)
+    parser.add_argument("--url", required=True)
+    parser.add_argument("--run", default="jaredpalmer/kev-4b")
+    parser.add_argument("--reps", type=int, default=50)
+    parser.add_argument("--warmups", type=int, default=10)
+    parser.add_argument("--out", required=True, type=Path)
+    args = parser.parse_args()
+    if args.reps < 1 or args.warmups < 0:
+        parser.error("reps must be positive and warmups must be nonnegative")
+
+    checkpoint = Checkpoint(args.run)
+    tok = load_tokenizer(checkpoint.meta.base, revision=checkpoint.meta.base_revision)
+    example = workload(tok, 270, 5)
+    request = {
+        "state": example["state"], "model": "kev-latest",
+        "questions": {str(i): {"type": "choice", "instructions": q["instr"],
+                               "criteria": {option: None for option in q["options"]}}
+                      for i, q in enumerate(example["questions"])},
+    }
+    record, _ = to_record(SystemOneRequest.model_validate(request))
+    encoded = encode(tok, record)
+    warm_new = [{**request, "state": request["state"] + f" Ticket {i:05d}."}
+                for i in range(args.warmups)]
+    measured_new = [{**request, "state": request["state"] + f" Ticket {i + args.warmups:05d}."}
+                    for i in range(args.reps)]
+    request_hash = hashlib.sha256(json.dumps([warm_new, measured_new, request], sort_keys=True).encode()).hexdigest()
+
+    with httpx.Client(base_url=args.url, timeout=120) as client:
+        for payload in warm_new:
+            response = client.post("/v1/systemone", json=payload)
+            response.raise_for_status()
+        fresh, _ = measure(client, measured_new)
+        for _ in range(args.warmups):
+            response = client.post("/v1/systemone", json=request)
+            response.raise_for_status()
+        cached, last = measure(client, [request] * args.reps)
+
+    report = {
+        "engine": args.engine,
+        "transport": "HTTP loopback",
+        "url": args.url,
+        "run": args.run,
+        "checkpoint_revision": Path(checkpoint.path).name,
+        "base_revision": checkpoint.meta.base_revision,
+        "adapter_sha256": digest(checkpoint.file("adapter_model.safetensors")),
+        "head_sha256": digest(checkpoint.file("head.pt")),
+        "temperature": checkpoint.meta.temperature,
+        "encoded_request_sha256": hashlib.sha256(json.dumps(encoded["ids"]).encode()).hexdigest(),
+        "requests_sha256": request_hash,
+        "code_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+        "code_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()),
+        "warmups": args.warmups,
+        "reps": args.reps,
+        "input_tokens": last["usage"]["input_tokens"],
+        "choices": {key: answer["choice"] for key, answer in last["answers"].items()},
+        "latency_ms": {"new_state": fresh, "cached_state": cached},
+    }
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({"engine": args.engine, "latency_ms": {
+        key: {field: values[field] for field in ("median", "p95")}
+        for key, values in report["latency_ms"].items()}}, indent=2))
+
+
+if __name__ == "__main__":
+    main()

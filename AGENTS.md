@@ -8,10 +8,10 @@ This repository builds a model-specific Apple Silicon inference runtime for the 
 - Unit tests: `uv run python -m pytest tests -q -m 'not model'`.
 - Model tests: `NERQOVA_TEST_RUN=<checkpoint> uv run python -m pytest tests -q -m model`.
 - Stock timing: `uv run python scripts/bench_decisions.py --engine kev-mlx --out runs/kev-mlx-latency.json`.
-- Nerqova timing: `uv run python scripts/bench_decisions.py --engine nerqova --out runs/nerqova-latency.json`.
+- Packed timing: `uv run python scripts/bench_decisions.py --engine nerqova-packed --out runs/nerqova-packed-latency.json`.
 - Compare: `uv run python scripts/compare_engines.py runs/kev-mlx-latency.json runs/nerqova-latency.json`.
 - Development suites: `uv run python scripts/evaluate.py --engine <kev-mlx|nerqova> --out runs/<name>`.
-- Serve: `uv run python -m nerqova.serve --run jaredpalmer/kev-4b --port 8009`.
+- Serve: `uv run python -m nerqova.serve --run jaredpalmer/kev-4b --packed-delta --port 8009`.
 
 ## Evidence rules
 
@@ -21,3 +21,4 @@ This repository builds a model-specific Apple Silicon inference runtime for the 
 - Read only development partitions while selecting runtime changes. Keep the locked test closed until the final path is selected.
 - Keep generated reports, model files, and traces under ignored `runs/`. Commit small verified evidence and explain its limits.
 - Do not report a speedup from a smaller model as a same-weight runtime gain.
+- Do not replay a full-model Xcode GPU capture. One replay grew to 124 GB of application memory and forced a reboot. Use bounded CLI measurements and monitor memory pressure.

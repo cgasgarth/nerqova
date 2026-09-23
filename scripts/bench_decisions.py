@@ -49,7 +49,7 @@ def measure(fn, reps, warmups=10):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run", default="jaredpalmer/kev-4b")
-    parser.add_argument("--engine", choices=["kev-mlx", "nerqova"], default="nerqova")
+    parser.add_argument("--engine", choices=["kev-mlx", "nerqova", "nerqova-unmasked", "nerqova-packed"], default="nerqova")
     parser.add_argument("--state-tokens", type=int, default=270)
     parser.add_argument("--questions", type=int, default=5)
     parser.add_argument("--reps", type=int, default=100)
@@ -63,7 +63,10 @@ def main():
         checkpoint = Checkpoint(args.run)
         tok, model = checkpoint.load("mps", LoadOptions(backend="mlx"))
     else:
-        checkpoint, tok, model = load_model(args.run)
+        checkpoint, tok, model = load_model(
+            args.run, unmasked_branches=args.engine == "nerqova-unmasked",
+            packed_delta=args.engine == "nerqova-packed",
+        )
     enc = model.encode(tok, workload(tok, args.state_tokens, args.questions))
     fixture_probabilities, prefix = model.probs_and_prefix(enc)
     result = {

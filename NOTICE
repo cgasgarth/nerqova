@@ -3,3 +3,8 @@ Jared Palmer's Kev project (https://github.com/jaredpalmer/kev), Apache-2.0,
 at commit 557598fced1dada75dfbf36ed144dce309ac6ceb.
 
 The original copyright and license terms are preserved in LICENSE.
+
+Nerqova's packed Gated DeltaNet kernel and layer path adapt code from Apple's
+MLX-LM project (https://github.com/ml-explore/mlx-lm), merge commit
+e9308d7b0854105386a587db52c2f1a635196165, under the MIT license.
+Copyright © 2023 Apple Inc. The MIT terms are in third_party/mlx_lm_LICENSE.
