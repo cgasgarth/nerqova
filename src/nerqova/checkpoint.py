@@ -11,6 +11,8 @@ def load_model(run, *, temperature=None, lora_scale=1.0,
                exit_head=None, exit_threshold=None,
                verify_head=None, verify_threshold=None):
     """Return (checkpoint, tokenizer, scorer) with unchanged Kev weights."""
+    import mlx.core as mx
+
     from .mlx_model import MLXDecisionModel, merge_lora
 
     if (exit_head is None) != (exit_threshold is None):
@@ -47,4 +49,6 @@ def load_model(run, *, temperature=None, lora_scale=1.0,
         model.load_exit(exit_head, exit_threshold, Path(checkpoint.path).name)
     if verify_head is not None:
         model.load_verifier(verify_head, verify_threshold, Path(checkpoint.path).name)
+    # Adapter and exit-head loading buffers are dead once the scorer is ready.
+    mx.clear_cache()
     return checkpoint, tok, model

@@ -28,24 +28,33 @@ def merge_lora(lm, adapter_dir, scale=1.0):
     alpha = cfg["lora_alpha"] / (cfg["r"] ** 0.5 if cfg.get("use_rslora") else cfg["r"])
     weights = mx.load(str(adapter_dir / "adapter_model.safetensors"))
     params = dict(tree_flatten(lm.parameters()))
-    merged = {}
+    merged_count = 0
+    # Merge one tensor at a time. Keep only a small pool of reusable CPU buffers
+    # during loading, then restore the callers allocator policy.
+    previous_cache_limit = mx.set_cache_limit(1024 ** 3)
     model_root = "language_model.model." if hasattr(lm, "language_model") else "model."
-    with mx.stream(mx.cpu):   # the GPU's fp32 matmul is a reduced-precision fast path (~1e-3 relative on an M5); the merge is one-time and must be exact
-        for name, a in weights.items():
-            if not name.endswith(".lora_A.weight"):
-                continue
-            stem = name[: -len(".lora_A.weight")]
-            # PEFT names the wrapped text model `base_model.model.<layers...>`; mlx-lm's text root differs by family.
-            target = stem.replace("base_model.model.", model_root, 1) + ".weight"
-            if target not in params:
-                raise ValueError(f"adapter tensor {stem} has no weight in the mlx-lm model (looked for {target})")
-            base = params[target]
-            delta = (weights[stem + ".lora_B.weight"].astype(mx.float32) @ a.astype(mx.float32)) * (alpha * scale)
-            merged[target] = (base.astype(mx.float32) + delta).astype(base.dtype)
-        mx.eval(list(merged.values()))
-    lm.load_weights(list(merged.items()), strict=False)
-    mx.eval(lm.parameters())
-    return len(merged)
+    try:
+        with mx.stream(mx.cpu):   # the GPU's fp32 matmul is a reduced-precision fast path (~1e-3 relative on an M5); the merge is one-time and must be exact
+            for name, a in weights.items():
+                if not name.endswith(".lora_A.weight"):
+                    continue
+                stem = name[: -len(".lora_A.weight")]
+                # PEFT names the wrapped text model `base_model.model.<layers...>`; mlx-lm's text root differs by family.
+                target = stem.replace("base_model.model.", model_root, 1) + ".weight"
+                if target not in params:
+                    raise ValueError(f"adapter tensor {stem} has no weight in the mlx-lm model (looked for {target})")
+                base = params.pop(target)
+                delta = (weights[stem + ".lora_B.weight"].astype(mx.float32) @ a.astype(mx.float32)) * (alpha * scale)
+                merged = (base.astype(mx.float32) + delta).astype(base.dtype)
+                mx.eval(merged)
+                lm.load_weights([(target, merged)], strict=False)
+                merged_count += 1
+                del base, delta, merged
+        mx.eval(lm.parameters())
+        mx.clear_cache()
+    finally:
+        mx.set_cache_limit(previous_cache_limit)
+    return merged_count
 
 
 class MLXDecisionModel:
