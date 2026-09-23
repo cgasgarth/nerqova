@@ -4,6 +4,8 @@ A model-specific Apple Silicon runtime for Kev-style decisions. The first target
 
 **Status:** research. The default Nerqova path is effectively tied with stock Kev MLX. An optional packed Metal DeltaNet kernel now preserves its development outputs and has shown a modest same-weight speed gain. The larger speed target remains open.
 
+At clean commit `601727c`, the packed path was about **6% faster** than stock Kev MLX for complete local and HTTP decisions on a fixed M5 Pro request, with zero choice flips across the frozen development suites. See the [measurement and limits](docs/performance.md#packed-metal-result) and [evidence](evidence/packed-metal-601727c.json).
+
 ## Goal
 
 One state and a set of typed questions go in. A probability distribution for each question comes out in one scoring pass. No answer-token loop runs. Nerqova aims for at least 2× lower **complete decision latency** than stock Kev-4B MLX on the same M5 Pro request, with the same checkpoint weights, option choices, and close served probabilities. The [performance plan](docs/performance.md) explains which [Husky](https://husky.underdog.ai/) hardware ideas fit this workload.
