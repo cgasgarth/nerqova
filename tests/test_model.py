@@ -42,6 +42,18 @@ def test_prefix_cache_keeps_questions_isolated(mode):
     with pytest.raises(ValueError, match="prefix"):
         model.probs_with_prefix(other, prefix)
 
+    if mode == "packed":
+        single = model.encode(tok, {**rec, "questions": questions[:1]})
+        cold, captured = model.probs_and_prefix(single)
+        model.probs(other)
+        reused = model.probs_with_prefix(enc, captured)
+        reordered = model.probs_with_prefix(
+            model.encode(tok, {**rec, "questions": questions[::-1]}), captured
+        )[::-1]
+        for actual, expected in [(cold, first[:1]), (reused, first), (reordered, first)]:
+            assert max(float((a - b).abs().max()) for a, b in zip(actual, expected)) < 0.01
+            assert all(a.argmax().item() == b.argmax().item() for a, b in zip(actual, expected))
+
 
 @pytest.mark.skipif(
     platform.system() != "Darwin" or platform.machine() != "arm64",
@@ -123,3 +135,27 @@ def test_early_exit_fallback_preserves_full_logits(tmp_path):
                                      "verifier_vetoes": 1}
     for logits, probability in zip(expected, verified, strict=True):
         assert float((torch.softmax(logits, -1) - probability).abs().max()) < 1e-4
+
+
+@pytest.mark.skipif(
+    platform.system() != "Darwin" or platform.machine() != "arm64",
+    reason="requires Apple Silicon",
+)
+@pytest.mark.parametrize("prefix_tokens", [1, 31, 64])
+def test_packed_delta_captures_prefix_without_changing_outputs(prefix_tokens):
+    import mlx.core as mx
+    from nerqova.packed_delta import packed_kernel
+
+    mx.random.seed(27)
+    q = (mx.random.normal((1, 64, 16, 128)) * 0.05).astype(mx.bfloat16)
+    k = (mx.random.normal(q.shape) * 0.05).astype(mx.bfloat16)
+    v = (mx.random.normal((1, 64, 32, 128)) * 0.05).astype(mx.bfloat16)
+    gamma = mx.full((1, 64, 32), 0.99, dtype=mx.float32)
+    beta = mx.full((1, 64, 32), 0.5, dtype=mx.bfloat16)
+    state = mx.random.normal((1, 32, 128, 128)) * 0.01
+    whole = packed_kernel(q, k, v, gamma, beta, state)
+    captured = packed_kernel(q, k, v, gamma, beta, state, prefix_tokens)
+    prefix = packed_kernel(*(x[:, :prefix_tokens] for x in (q, k, v, gamma, beta)), state)
+    mx.eval(whole, captured, prefix)
+    assert bool(mx.array_equal(whole[0], captured[0]).item())
+    assert bool(mx.array_equal(prefix[1], captured[1]).item())

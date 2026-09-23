@@ -72,6 +72,7 @@ class MLXDecisionModel:
             raise ValueError(f"the MLX decision scorer supports Qwen3 and Qwen3.5, not {self.lm.model_type}")
         self.pad_id = pad_id
         self.unmasked_branches = unmasked_branches
+        self.packed_delta = False
         self.head = PointerHead(self.text.embed_tokens.weight.shape[1], dp=head_dim).eval()
 
     def enable_packed_delta(self):
@@ -80,6 +81,7 @@ class MLXDecisionModel:
             raise ValueError("packed DeltaNet supports only the Kev-4B Qwen3.5 backbone")
         from .packed_delta import PackedGatedDeltaNet
 
+        self.packed_delta = True
         for layer in self.text.layers:
             if layer.is_linear:
                 if (layer.linear_attn.key_dim, layer.linear_attn.value_dim,
@@ -185,9 +187,29 @@ class MLXDecisionModel:
         return self._branch_logits(enc, self.prefix(enc)[1])
 
     def probs(self, enc):
-        return self._branch_probs(enc, self.prefix(enc)[1])
+        return self.probs_and_prefix(enc)[0]
 
     def probs_and_prefix(self, enc):
+        state_ids, _, rows = rows_of(enc)
+        if self.packed_delta and len(rows) == 1 and state_ids:
+            # One causal pass can score this question and capture its state prefix.
+            # Recurrent kernels snapshot at the boundary; attention caches trim it.
+            row = rows[0]
+            count = len(state_ids)
+            cache = make_prompt_cache(self.lm)
+            for layer_cache in cache:
+                if isinstance(layer_cache, ArraysCache):
+                    layer_cache.capture_prefix_tokens = count
+            h = self._hidden([state_ids + row["ids"]], cache)
+            for layer_cache in cache:
+                if isinstance(layer_cache, ArraysCache):
+                    del layer_cache.capture_prefix_tokens
+                else:
+                    layer_cache.trim(len(row["ids"]))
+            logits = self._host_batches([self._batch_logits(
+                h, [(count + row["decide"], [count + o for o in row["opts"]])]
+            )])
+            return [F.softmax(z, -1) for z in logits], (tuple(state_ids), cache)
         prefix = self.prefix(enc)
         return self._branch_probs(enc, prefix[1]), prefix
 

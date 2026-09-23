@@ -15,7 +15,7 @@ from mlx_lm.models.qwen3_5 import GatedDeltaNet
 
 _kernel = mx.fast.metal_kernel(
     name="nerqova_packed_gated_delta_128",
-    input_names=["q", "k", "v", "g", "beta", "state_in", "T"],
+    input_names=["q", "k", "v", "g", "beta", "state_in", "T", "prefix_tokens"],
     output_names=["y", "state_out"],
     source=r"""
         constexpr int lanes_per_row = 4;
@@ -89,6 +89,12 @@ _kernel = mx.fast.metal_kernel(
             y[dv_idx] = static_cast<InT>(out);
           }
 
+          if (CapturePrefix && t + 1 == prefix_tokens) {
+            for (int i = 0; i < values_per_lane; ++i) {
+              o_state[i] = static_cast<StT>(state[i]);
+            }
+          }
+
           q_ += Hk * Dk;
           k_ += Hk * Dk;
           v_ += Hv * Dv;
@@ -97,16 +103,20 @@ _kernel = mx.fast.metal_kernel(
           beta_ += Hv;
         }
 
-        for (int i = 0; i < values_per_lane; ++i) {
-          o_state[i] = static_cast<StT>(state[i]);
+        if (!CapturePrefix) {
+          for (int i = 0; i < values_per_lane; ++i) {
+            o_state[i] = static_cast<StT>(state[i]);
+          }
         }
     """,
 )
 
 
-def packed_kernel(q, k, v, g, beta, state):
+def packed_kernel(q, k, v, g, beta, state, prefix_tokens=0):
     batch, tokens, key_heads, key_width = q.shape
     value_heads, value_width = v.shape[2:]
+    if not 0 <= prefix_tokens <= tokens:
+        raise ValueError("prefix snapshot must lie within the token sequence")
     if ((key_heads, value_heads, key_width, value_width) != (16, 32, 128, 128)
             or k.shape != q.shape or v.shape[:2] != (batch, tokens)
             or g.shape != (batch, tokens, value_heads)
@@ -116,9 +126,10 @@ def packed_kernel(q, k, v, g, beta, state):
             or g.dtype != mx.float32 or state.dtype != mx.float32):
         raise ValueError("packed DeltaNet needs Kev-4B's unmasked scalar-gate shapes")
     return _kernel(
-        inputs=[q, k, v, g, beta, state, tokens],
+        inputs=[q, k, v, g, beta, state, tokens, prefix_tokens],
         template=[("InT", q.dtype), ("StT", state.dtype), ("Dk", key_width),
-                  ("Dv", value_width), ("Hk", key_heads), ("Hv", value_heads)],
+                  ("Dv", value_width), ("Hk", key_heads), ("Hv", value_heads),
+                  ("CapturePrefix", bool(prefix_tokens))],
         grid=(32, value_width // 8, batch * value_heads),
         threadgroup=(32, 2, 1),
         output_shapes=[v.shape, state.shape],
@@ -126,7 +137,9 @@ def packed_kernel(q, k, v, g, beta, state):
     )
 
 
-def packed_update(q, k, v, a, b, A_log, dt_bias, state=None, mask=None, use_kernel=True):
+def packed_update(q, k, v, a, b, A_log, dt_bias, state=None, mask=None, use_kernel=True, prefix_tokens=0):
+    if prefix_tokens and (mask is not None or not use_kernel):
+        raise ValueError("prefix snapshot requires the unmasked Metal kernel")
     if mask is not None or not use_kernel:
         return original_update(q, k, v, a, b, A_log, dt_bias, state, mask, use_kernel)
     beta = mx.sigmoid(b)
@@ -135,7 +148,7 @@ def packed_update(q, k, v, a, b, A_log, dt_bias, state=None, mask=None, use_kern
         batch, _, _, key_width = q.shape
         value_heads, value_width = v.shape[2:]
         state = mx.zeros((batch, value_heads, value_width, key_width), dtype=mx.float32)
-    return packed_kernel(q, k, v, gamma, beta, state)
+    return packed_kernel(q, k, v, gamma, beta, state, prefix_tokens)
 
 
 class PackedGatedDeltaNet(GatedDeltaNet):
@@ -143,6 +156,7 @@ class PackedGatedDeltaNet(GatedDeltaNet):
 
     def __call__(self, inputs, mask=None, cache=None):
         batch, tokens, _ = inputs.shape
+        prefix_tokens = getattr(cache, "capture_prefix_tokens", 0)
         if self.sharding_group is not None:
             inputs = sum_gradients(self.sharding_group)(inputs)
 
@@ -169,7 +183,10 @@ class PackedGatedDeltaNet(GatedDeltaNet):
                 positions = (ends[:, None] + mx.arange(keep))[..., None]
                 cache[0] = mx.take_along_axis(conv_input, positions, axis=1)
             else:
-                cache[0] = mx.contiguous(conv_input[:, -keep:, :])
+                cache[0] = mx.contiguous(
+                    conv_input[:, prefix_tokens:prefix_tokens + keep, :]
+                    if prefix_tokens else conv_input[:, -keep:, :]
+                )
         conv_out = nn.silu(self.conv1d(conv_input))
 
         q, k, v = [
@@ -186,7 +203,7 @@ class PackedGatedDeltaNet(GatedDeltaNet):
         k = inv_scale * mx.fast.rms_norm(k, None, 1e-6)
         out, state = packed_update(
             q, k, v, a, b, self.A_log, self.dt_bias, state, mask,
-            use_kernel=not self.training,
+            use_kernel=not self.training, prefix_tokens=prefix_tokens,
         )
         if cache is not None:
             cache[1] = state
