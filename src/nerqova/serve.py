@@ -23,6 +23,10 @@ def main():
     import uvicorn
     from kev.serve import Server, app
     from kev.suite import digest
+    import mlx.core as mx
+
+    # Keep reusable Metal buffers bounded across changing decision shapes.
+    mx.set_cache_limit(1024 ** 3)
 
     checkpoint, tok, model = load_model(
         args.run, packed_delta=args.packed_delta,
