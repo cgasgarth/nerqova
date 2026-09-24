@@ -21,7 +21,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--allow-test", action="store_true", help="required for one final locked-test read")
     parser.add_argument("--engine", choices=("kev-mlx", "nerqova-early"), required=True)
-    parser.add_argument("--run", default="jaredpalmer/kev-4b")
+    parser.add_argument("--run", default="jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1")
     parser.add_argument("--suite", type=Path, default=Path("evals/v7/decision-v7"))
     parser.add_argument("--transfer", type=Path, default=Path("evals/v4/transfer-v4"))
     parser.add_argument("--exit-head", type=Path)

@@ -92,7 +92,7 @@ def calibration_report(logits_rows, teacher_rows, labels):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--run", default="jaredpalmer/kev-4b")
+    parser.add_argument("--run", default="jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1")
     parser.add_argument("--train-dir", required=True, type=Path)
     parser.add_argument("--calibration-dir", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)

@@ -49,7 +49,7 @@ def main():
     parser.add_argument("--exit-threshold", type=float)
     parser.add_argument("--verify-head", type=Path)
     parser.add_argument("--verify-threshold", type=float)
-    parser.add_argument("--run", default="jaredpalmer/kev-4b")
+    parser.add_argument("--run", default="jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1")
     parser.add_argument("--state-tokens", type=int, default=270)
     parser.add_argument("--questions", type=int, default=5)
     parser.add_argument("--reps", type=int, default=100)

@@ -1,9 +1,9 @@
 # Nerqova
 
-Nerqova serves Kev-style decisions on Apple Silicon. It takes one state and a set
-of typed questions, then returns an option probability distribution for each
-question. It uses the released **Kev-4B checkpoint** and the same System One
-HTTP contract as Kev.
+Nerqova serves typed decisions through an optimized MLX runtime on Apple
+Silicon. It takes one state and a set of questions, then returns an option
+probability distribution for each question. The current release uses a pinned
+4B research checkpoint and exposes the System One HTTP contract.
 
 The runtime has three speed paths:
 
@@ -65,25 +65,47 @@ intervals](docs/performance.md#conditional-exit-candidate) show the full result.
 
 ## Run it
 
-On Apple Silicon with Python 3.13 and [uv](https://docs.astral.sh/uv/):
+On Apple Silicon with Python 3.13, [uv](https://docs.astral.sh/uv/), and
+[GitHub CLI](https://cli.github.com/), clone this repository and run:
 
 ```bash
-uv sync --extra serve --group dev
+git clone https://github.com/cgasgarth/nerqova.git
+cd nerqova
+uv sync --extra serve --no-dev --frozen
 mkdir -p runs/weights
 gh release download v0.1.0 --repo cgasgarth/nerqova --pattern 'kev4b-*' --dir runs/weights
-uv run python -m nerqova.serve --run jaredpalmer/kev-4b --packed-delta \
+uv run --no-dev python -m nerqova.serve \
+  --run jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1 \
+  --packed-delta \
   --exit-head runs/weights/kev4b-exit16-pair.pt --exit-threshold 0.90 \
   --verify-head runs/weights/kev4b-verify8-pair.pt --verify-threshold 0.26 \
   --port 8009
 ```
 
-Send a Kev System One `POST /v1/systemone` request to `http://127.0.0.1:8009`.
-Omit both head flags to run the same-weight packed kernel alone. Omit
-`--packed-delta` as well to run the plain Nerqova scorer.
+The first start downloads the pinned public Kev-4B checkpoint and its Qwen3.5
+base from Hugging Face. The two exit heads are public GitHub release assets.
+The checkpoint revision above is required: the public Kev-4B default can move,
+and the released heads reject a different revision. Send a Kev System One
+`POST /v1/systemone` request to `http://127.0.0.1:8009`:
+
+```bash
+curl -sS http://127.0.0.1:8009/v1/systemone \
+  -H 'content-type: application/json' \
+  -d '{"model":"nerqova","state":"The board has a 2 in the top left and a 2 below it.","questions":{"move":{"type":"choice","instructions":"Choose a move that merges the two tiles.","criteria":{"up":"Slide up.","right":"Slide right.","down":"Slide down.","left":"Slide left."}}}}'
+```
+
+This command enables the packed Metal kernel, verified early exit, and bounded
+MLX reuse cache. To enable **one-pass prefix capture** on a single-question
+request, start the server with `--packed-delta` but omit all four exit and
+verifier flags. The current early-exit path does not use one-pass capture, so
+the two measured gains are separate. Omit `--packed-delta` too for the plain
+Nerqova scorer. The experimental 2048 game head and video harness are not part
+of this release.
 
 ## Verify and measure
 
 ```bash
+uv sync --extra serve --group dev --frozen
 uv run python -m pytest tests -q -m 'not model'
 uv run python scripts/bench_complete.py --engine kev-mlx --out runs/kev-complete.json
 uv run python scripts/bench_complete.py --engine nerqova-packed --out runs/packed-complete.json
@@ -95,13 +117,15 @@ Mac. The [performance report](docs/performance.md) separates model-only, local
 complete-decision, and HTTP time. It also records rejected kernel probes and
 the limits of the measured gains.
 
-## Source and license
+## Research provenance and license
 
 `src/nerqova/` contains the checkpoint loader, scorer, packed Metal kernel, and
 server. `models/` documents the trained heads. `evals/` holds suite manifests;
-`evidence/` holds versioned reports. The Kev source is pinned to
+`evidence/` holds versioned reports. The current checkpoint comes from the
+Kev-4B research release. The dependency on Kev source is pinned to
 `557598fced1dada75dfbf36ed144dce309ac6ceb`; [NOTICE](NOTICE) records its
-attribution.
+attribution. The performance comparisons against stock Kev MLX use this same
+checkpoint revision, not the moving Hugging Face default.
 
 Nerqova's original code is Apache-2.0. The packed kernel adapts MIT-licensed
 MLX-LM code. See [LICENSE](LICENSE), [NOTICE](NOTICE), and the

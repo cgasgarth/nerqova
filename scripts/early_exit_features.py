@@ -39,7 +39,7 @@ def flush(path, items):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--run", default="jaredpalmer/kev-4b")
+    parser.add_argument("--run", default="jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1")
     parser.add_argument("--suite", type=Path, default=Path("evals/v7/decision-v7"))
     parser.add_argument("--teacher", type=Path, default=Path("runs/weights/kev4b-v7-train-teacher.json.gz"))
     parser.add_argument("--split", choices=("train", "calibration"), required=True)

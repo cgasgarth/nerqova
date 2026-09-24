@@ -1,4 +1,4 @@
-# Kev-4B conditional exit heads
+# Nerqova conditional exit heads
 
 These are Nerqova's trained decision readouts for the released Kev-4B backbone. The backbone, LoRA adapter, and full Kev pointer head remain unchanged. The layer-16 head can answer a request early; the layer-8 head checks agreement. A question continues through all 32 layers if the layer-16 confidence is below **0.90**, the layer-8 confidence margin above uniform chance is below **0.26**, or their top choices differ. The margin is `(top_probability - 1 / option_count) / (1 - 1 / option_count)`. The full path retains the original Kev readout.
 
@@ -28,7 +28,9 @@ uv run python scripts/select_exit_gate.py runs/early-exit/head-l16-pair.pt \
 ```
 
 ```bash
-uv run python -m nerqova.serve --run jaredpalmer/kev-4b --packed-delta \
+uv run --no-dev python -m nerqova.serve \
+  --run jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1 \
+  --packed-delta \
   --exit-head runs/weights/kev4b-exit16-pair.pt --exit-threshold 0.90 \
   --verify-head runs/weights/kev4b-verify8-pair.pt --verify-threshold 0.26
 ```

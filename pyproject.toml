@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nerqova"
 version = "0.1.0"
-description = "Model-specific Apple Silicon inference for Kev-style decisions"
+description = "Optimized MLX decision inference on Apple Silicon"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE", "third_party/mlx_lm_LICENSE"]

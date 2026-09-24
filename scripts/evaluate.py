@@ -1,7 +1,7 @@
 """Score one engine with unchanged Kev weights on frozen development suites.
 
-    uv run python scripts/evaluate.py --engine kev-mlx --run jaredpalmer/kev-4b --out runs/kev-mlx-dev
-    uv run python scripts/evaluate.py --engine nerqova --run jaredpalmer/kev-4b --out runs/nerqova-dev
+    uv run python scripts/evaluate.py --engine kev-mlx --out runs/kev-mlx-dev
+    uv run python scripts/evaluate.py --engine nerqova --out runs/nerqova-dev
 
 The checkpoint's served temperature is used. This script never reads locked test data.
 """
@@ -40,7 +40,7 @@ def main():
     parser.add_argument("--exit-threshold", type=float)
     parser.add_argument("--verify-head", type=Path)
     parser.add_argument("--verify-threshold", type=float)
-    parser.add_argument("--run", default="jaredpalmer/kev-4b")
+    parser.add_argument("--run", default="jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1")
     parser.add_argument("--suite", type=Path, default=Path("evals/v7/decision-v7"))
     parser.add_argument("--transfer", type=Path, default=Path("evals/v4/transfer-v4"))
     parser.add_argument("--out", required=True, type=Path)

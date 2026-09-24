@@ -1,7 +1,7 @@
 """Compare stock Kev MLX and Nerqova model-only decisions on the local GPU.
 
-    uv run python scripts/bench_decisions.py --engine kev-mlx --run jaredpalmer/kev-4b
-    uv run python scripts/bench_decisions.py --engine nerqova --run jaredpalmer/kev-4b
+    uv run python scripts/bench_decisions.py --engine kev-mlx
+    uv run python scripts/bench_decisions.py --engine nerqova
 
 The fixed workload has a roughly 270-token state and five three-option questions.
 Both paths take a pre-encoded request and return host-visible probabilities, so
@@ -48,7 +48,7 @@ def measure(fn, reps, warmups=10):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--run", default="jaredpalmer/kev-4b")
+    parser.add_argument("--run", default="jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1")
     parser.add_argument("--engine", choices=["kev-mlx", "nerqova", "nerqova-unmasked", "nerqova-packed", "nerqova-early"], default="nerqova")
     parser.add_argument("--exit-head", type=Path)
     parser.add_argument("--exit-threshold", type=float)
