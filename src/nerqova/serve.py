@@ -14,7 +14,9 @@ def main():
     parser.add_argument("--packed-delta", action="store_true",
                         help="use the experimental packed Metal DeltaNet on Kev-4B")
     parser.add_argument("--exit-head", help="trained same-backbone early-exit pointer head")
-    parser.add_argument("--exit-threshold", type=float, help="calibrated early-exit confidence gate")
+    parser.add_argument("--exit-gap", type=float, help="minimum log odds of the top choice over the runner-up")
+    parser.add_argument("--exit-gap-wide", type=float,
+                        help="minimum log odds for choices with at least 14 options")
     parser.add_argument("--verify-head", help="earlier trained head that must agree with the exit head")
     parser.add_argument("--verify-threshold", type=float,
                         help="minimum verifier confidence margin above uniform chance")
@@ -30,7 +32,7 @@ def main():
 
     checkpoint, tok, model = load_model(
         args.run, packed_delta=args.packed_delta,
-        exit_head=args.exit_head, exit_threshold=args.exit_threshold,
+        exit_head=args.exit_head, exit_gap=args.exit_gap, exit_gap_wide=args.exit_gap_wide,
         verify_head=args.verify_head, verify_threshold=args.verify_threshold,
     )
     app.state.server = Server(checkpoint, tok, model, "mps")
@@ -38,7 +40,8 @@ def main():
         "engine": "nerqova-early" if args.exit_head else "nerqova-packed" if args.packed_delta else "nerqova",
         "checkpoint_revision": Path(checkpoint.path).name,
         "exit_head_sha256": digest(args.exit_head) if args.exit_head else None,
-        "exit_threshold": args.exit_threshold,
+        "exit_gap": args.exit_gap,
+        "exit_gap_wide": args.exit_gap_wide,
         "verify_head_sha256": digest(args.verify_head) if args.verify_head else None,
         "verify_threshold": args.verify_threshold,
     }

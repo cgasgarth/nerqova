@@ -21,7 +21,7 @@ from nerqova.checkpoint import load_model
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run", default="jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1")
+    parser.add_argument("--run", default="jaredpalmer/kev-4b@1da696f7938f77c4cdf5471e92fd342baff41778")
     parser.add_argument("--reps", type=int, default=30)
     parser.add_argument("--warmups", type=int, default=5)
     parser.add_argument("--out", type=Path, required=True)

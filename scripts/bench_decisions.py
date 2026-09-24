@@ -48,10 +48,11 @@ def measure(fn, reps, warmups=10):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--run", default="jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1")
+    parser.add_argument("--run", default="jaredpalmer/kev-4b@1da696f7938f77c4cdf5471e92fd342baff41778")
     parser.add_argument("--engine", choices=["kev-mlx", "nerqova", "nerqova-unmasked", "nerqova-packed", "nerqova-early"], default="nerqova")
     parser.add_argument("--exit-head", type=Path)
-    parser.add_argument("--exit-threshold", type=float)
+    parser.add_argument("--exit-gap", type=float)
+    parser.add_argument("--exit-gap-wide", type=float)
     parser.add_argument("--verify-head", type=Path)
     parser.add_argument("--verify-threshold", type=float)
     parser.add_argument("--state-tokens", type=int, default=270)
@@ -60,10 +61,12 @@ def main():
     parser.add_argument("--warmups", type=int, default=10)
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
-    if args.engine == "nerqova-early" and (args.exit_head is None or args.exit_threshold is None):
-        parser.error("nerqova-early requires --exit-head and --exit-threshold")
-    if args.engine != "nerqova-early" and (args.exit_head is not None or args.exit_threshold is not None):
+    if args.engine == "nerqova-early" and (args.exit_head is None or args.exit_gap is None):
+        parser.error("nerqova-early requires --exit-head and --exit-gap")
+    if args.engine != "nerqova-early" and (args.exit_head is not None or args.exit_gap is not None or args.exit_gap_wide is not None):
         parser.error("exit options require nerqova-early")
+    if args.exit_gap_wide is not None and args.exit_gap is None:
+        parser.error("exit-gap-wide requires exit-gap")
     if (args.verify_head is None) != (args.verify_threshold is None) or (args.verify_head and args.engine != "nerqova-early"):
         parser.error("verifier options must be set together for nerqova-early")
     if args.state_tokens < 1 or args.questions < 1 or args.reps < 1 or args.warmups < 0:
@@ -76,7 +79,7 @@ def main():
         checkpoint, tok, model = load_model(
             args.run, unmasked_branches=args.engine == "nerqova-unmasked",
             packed_delta=args.engine in ("nerqova-packed", "nerqova-early"),
-            exit_head=args.exit_head, exit_threshold=args.exit_threshold,
+            exit_head=args.exit_head, exit_gap=args.exit_gap, exit_gap_wide=args.exit_gap_wide,
             verify_head=args.verify_head, verify_threshold=args.verify_threshold,
         )
     enc = model.encode(tok, workload(tok, args.state_tokens, args.questions))
@@ -91,7 +94,8 @@ def main():
         "head_sha256": digest(checkpoint.file("head.pt")),
         "temperature": model.head.temperature,
         "exit_head_sha256": digest(args.exit_head) if args.exit_head else None,
-        "exit_threshold": args.exit_threshold,
+        "exit_gap": args.exit_gap,
+        "exit_gap_wide": args.exit_gap_wide,
         "verify_head_sha256": digest(args.verify_head) if args.verify_head else None,
         "verify_threshold": args.verify_threshold,
         "code_sha": command("git", "rev-parse", "HEAD"),

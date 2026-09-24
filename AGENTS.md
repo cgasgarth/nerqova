@@ -1,6 +1,6 @@
 # Nerqova
 
-This repository builds a model-specific Apple Silicon inference runtime for the released Kev-4B checkpoint. The primary benchmark uses unchanged checkpoint weights. A smaller student model is separate research and cannot establish a runtime speedup.
+This repository builds a model-specific Apple Silicon inference runtime for the pinned public 4B decision checkpoint. The default benchmark uses unchanged checkpoint weights. The optional trained exit head is a separate quality-gated path. A smaller model cannot establish a same-weight runtime speedup.
 
 ## Commands
 
@@ -11,7 +11,7 @@ This repository builds a model-specific Apple Silicon inference runtime for the 
 - Packed timing: `uv run python scripts/bench_decisions.py --engine nerqova-packed --out runs/nerqova-packed-latency.json`.
 - Compare: `uv run python scripts/compare_engines.py runs/kev-mlx-latency.json runs/nerqova-latency.json`.
 - Development suites: `uv run python scripts/evaluate.py --engine <kev-mlx|nerqova> --out runs/<name>`.
-- Serve: `uv run python -m nerqova.serve --run jaredpalmer/kev-4b --packed-delta --port 8009`.
+- Serve: `uv run python -m nerqova.serve --run jaredpalmer/kev-4b@1da696f7938f77c4cdf5471e92fd342baff41778 --packed-delta --port 8009`.
 
 ## Evidence rules
 

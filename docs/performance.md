@@ -1,4 +1,7 @@
-# Same-weight performance plan
+# Same-weight performance plan (v0.1 historical)
+
+This report applies to the previous checkpoint and exit heads. See
+[the current pinned-checkpoint results](latest-performance.md) for v0.2.
 
 The primary target is the released Kev-4B checkpoint on an Apple M5 Pro with 20 GPU cores and 48 GB of memory. Compare Nerqova with stock Kev MLX using the same adapter, base revision, head, temperature, encoded request, and warm resident model. Keep the returned choices fixed and measure probability differences. A new trained model is separate research; a smaller model alone does not satisfy this target.
 

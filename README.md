@@ -1,132 +1,109 @@
 # Nerqova
 
-Nerqova serves typed decisions through an optimized MLX runtime on Apple
-Silicon. It takes one state and a set of questions, then returns an option
-probability distribution for each question. The current release uses a pinned
-4B research checkpoint and exposes the System One HTTP contract.
+Nerqova is a model-specific MLX runtime for typed System One decisions on Apple
+Silicon. It reads one state and one or more questions, then returns a probability
+distribution for each answer. It does not generate text. The default path uses a
+packed Metal recurrence and the unchanged, pinned 4B reference weights.
 
-The runtime has three speed paths:
+## Run
 
-1. **Packed Metal DeltaNet:** a model-specific GPU recurrence assigns eight
-   value rows to each SIMD group. It keeps the checkpoint weights and matches
-   the prior recurrence output on the tested Kev-4B shapes.
-2. **Verified early exit:** trained readouts at layers 8 and 16 let a confident
-   question stop before all 32 layers. The layer-16 choice must have calibrated
-   confidence, and the layer-8 verifier must agree. Other questions continue
-   through the full model and use Kev's original pointer head.
-3. **One-pass prefix capture:** a one-question request saves the recurrent
-   prefix while it scores options. This avoids a second pass through the state.
-   The dedicated server also limits retained MLX reuse buffers to 1 GiB.
-
-Kev scores options in a forward pass, with no answer-token loop. The gain here
-comes from less GPU work per decision and a kernel tuned for this model's
-recurrence. Early-exit probabilities can differ from full Kev probabilities;
-the [model card](models/README.md) explains the gate and quality checks.
-
-## Performance impact
-
-On a fixed one-question 2048 state, the plain packed scorer with one-pass
-prefix capture cut complete local cold decision time from **106.62 to 60.11 ms**
-(**1.77×**) with the same choice. Cached time was **53.90 versus 51.99 ms**.
-This path uses the released Kev-4B weights and no early exit. Loading also cut
-ready process RSS from about **19.0 to 8.7 GiB** on the measured Mac. The
-[one-pass evidence](evidence/runtime-memory-prefix-9e88910.json) records the
-request, 30 timing samples per condition, weight checks, and limits.
-
-On 60 identical local chess positions, direct game moves and HTTP model calls
-gave **5.41 actions/s** for stock Kev and **7.12 actions/s** for Nerqova
-(**1.32×**) when both used the same 1 GiB MLX reuse cap. All choices matched;
-the maximum probability difference was **0.0001**. This was one sequential
-block per engine; see the [local game evidence](evidence/local-games-516d988.json).
-
-The [v0.1.0 measurement](docs/performance.md#conditional-exit-candidate) used
-the same Kev-4B checkpoint on an M5 Pro, with 50 timed requests after 10 warmups
-per run. The fixed request had about 275 state tokens and five three-option
-questions. These are **complete HTTP request medians**, including encoding and
-response formatting:
-
-| Request | Stock Kev MLX | Packed kernel only | Packed kernel + early exit |
-|---|---:|---:|---:|
-| New state | 194–197 ms | 187 ms | 95 ms |
-| Cached state | 80–81 ms | 76 ms | 40 ms |
-
-The packed kernel alone improved this complete request by about **6%** without
-new weights. The verified exit improved its median by about **2×**. The exit
-rate depends on the question: a varied development set improved only **1.09×**
-in median model time, and the candidate's new-state HTTP p95 was about 175 ms.
-These fixed-request medians are not a promise for every workload. See the
-[versioned evidence](evidence/conditional-exit-e23ddd3.json) for hashes, raw
-samples, p95 values, and measurement order.
-
-The frozen locked evaluation had **zero choice flips across 2,204 questions**
-and full coverage. Accuracy matched stock Kev; Brier improved slightly; ECE
-rose slightly within the predeclared limit. The [quality table and paired
-intervals](docs/performance.md#conditional-exit-candidate) show the full result.
-
-## Run it
-
-On Apple Silicon with Python 3.13, [uv](https://docs.astral.sh/uv/), and
-[GitHub CLI](https://cli.github.com/), clone this repository and run:
+On Apple Silicon, install [uv](https://docs.astral.sh/uv/) and run:
 
 ```bash
 git clone https://github.com/cgasgarth/nerqova.git
 cd nerqova
 uv sync --extra serve --no-dev --frozen
-mkdir -p runs/weights
-gh release download v0.1.0 --repo cgasgarth/nerqova --pattern 'kev4b-*' --dir runs/weights
 uv run --no-dev python -m nerqova.serve \
-  --run jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1 \
-  --packed-delta \
-  --exit-head runs/weights/kev4b-exit16-pair.pt --exit-threshold 0.90 \
-  --verify-head runs/weights/kev4b-verify8-pair.pt --verify-threshold 0.26 \
-  --port 8009
+  --run jaredpalmer/kev-4b@1da696f7938f77c4cdf5471e92fd342baff41778 \
+  --packed-delta --port 8009
 ```
 
-The first start downloads the pinned public Kev-4B checkpoint and its Qwen3.5
-base from Hugging Face. The two exit heads are public GitHub release assets.
-The checkpoint revision above is required: the public Kev-4B default can move,
-and the released heads reject a different revision. Send a Kev System One
-`POST /v1/systemone` request to `http://127.0.0.1:8009`:
+The first start downloads the pinned public checkpoint and its base model. Send
+one request to `POST http://127.0.0.1:8009/v1/systemone`:
 
 ```bash
 curl -sS http://127.0.0.1:8009/v1/systemone \
   -H 'content-type: application/json' \
-  -d '{"model":"nerqova","state":"The board has a 2 in the top left and a 2 below it.","questions":{"move":{"type":"choice","instructions":"Choose a move that merges the two tiles.","criteria":{"up":"Slide up.","right":"Slide right.","down":"Slide down.","left":"Slide left."}}}}'
+  -d '{"model":"nerqova","state":"Two blue tiles can merge when moved up.","questions":{"move":{"type":"choice","instructions":"Choose the move that merges them.","criteria":{"up":"Move up","left":"Move left","right":"Move right"}}}}'
 ```
 
-This command enables the packed Metal kernel, verified early exit, and bounded
-MLX reuse cache. To enable **one-pass prefix capture** on a single-question
-request, start the server with `--packed-delta` but omit all four exit and
-verifier flags. The current early-exit path does not use one-pass capture, so
-the two measured gains are separate. Omit `--packed-delta` too for the plain
-Nerqova scorer. The experimental 2048 game head and video harness are not part
-of this release.
+The response includes a choice and calibrated probabilities. The default path
+needs no extra head files. The optional trained exit head and its quality limits
+are in [the model card](models/README.md).
 
-## Verify and measure
+## How it works
+
+- The model-specific Metal DeltaNet kernel packs eight value rows into each
+  SIMD group. It uses the same backbone, adapter, and full pointer head as the
+  reference checkpoint.
+- The scorer keeps the state prefix in MLX for repeated-state requests. Its
+  one-question path can capture the prefix while it scores the question.
+- Loading merges adapter weights one tensor at a time. The server bounds
+  reusable MLX buffers to 1 GiB. These choices reduce ready-process memory.
+- An optional layer-16 readout can stop on a clear winner. Its gate compares
+  the top two answer probabilities, with a separate calibrated rule for 14 or
+  more options. The default server does not enable it because it did not
+  improve the fixed complete-request workload.
+
+## Measured impact
+
+Complete local decisions on an Apple M5 Pro, macOS 26.5.2, MLX 0.32.2, and
+mlx-lm 0.31.3. Each row used 5 warmups and 30 timed requests in a separate
+process. “Cold” clears the state-prefix cache; “cached” repeats the state.
+Both engines used the same pinned checkpoint and returned the same choice on
+these fixtures. macOS reported Low Power Mode despite a selected High Power UI
+setting and a 94 W adapter; the reports record that conflict.
+
+| Request | Reference MLX cold / cached | Nerqova packed cold / cached | Speedup cold / cached |
+| --- | ---: | ---: | ---: |
+| One question, 3 options | 403.50 / 140.41 ms | 260.45 / 133.54 ms | 1.55× / 1.05× |
+| One question, 15 options | 206.29 / 84.13 ms | 149.67 / 79.87 ms | 1.38× / 1.05× |
+| Five questions, 3 options each | 202.55 / 82.51 ms | 197.18 / 80.47 ms | 1.03× / 1.03× |
+
+The five-question request is about **5.07 decisions/s cold** and **12.43
+ decisions/s cached** on the packed path. These are serial complete-request
+rates, not GPU-only throughput. The one-question and five-question paths have
+different cache and branch work, so option and question count matter. The
+2× cold and cached target was **not met** on these workloads.
+
+On the same five-question fixture, 4-bit quantization of the reference model
+reduced active MLX memory from **7.90 to 2.27 GiB**, but ran at **204.60 /
+85.91 ms** and reduced transfer accuracy. A separate 0.8B reference ran at
+**43.94 / 19.39 ms**, with lower transfer accuracy. The [comparison report](docs/latest-performance.md)
+shows accuracy, calibration, memory, p95 latency, and each optimization's
+contribution. Versioned raw evidence is in `evidence/`.
+
+## Quality
+
+On frozen development questions, the packed path changed **zero top choices**
+against the same-weight reference across decision-v7 and transfer-v4 (2,232
+questions). The largest probability difference was 0.00035. The pinned
+reference reached **87.34%** decision-v7 clean accuracy, **80.49%** transfer-v4
+clean accuracy, and **89.35%** documents-v1 clean accuracy with full coverage.
+The optional trained exit preserved these development choices under its selected
+gate, but its probabilities can differ more. [See the measured limits](docs/latest-performance.md).
+
+## Verify
 
 ```bash
 uv sync --extra serve --group dev --frozen
 uv run python -m pytest tests -q -m 'not model'
-uv run python scripts/bench_complete.py --engine kev-mlx --out runs/kev-complete.json
-uv run python scripts/bench_complete.py --engine nerqova-packed --out runs/packed-complete.json
-uv run python scripts/compare_engines.py --complete runs/kev-complete.json runs/packed-complete.json
+NERQOVA_TEST_RUN=jaredpalmer/kev-4b@1da696f7938f77c4cdf5471e92fd342baff41778 \
+  uv run python -m pytest tests -q -m model
+uv run python scripts/bench_complete.py --engine kev-mlx --out runs/reference.json
+uv run python scripts/bench_complete.py --engine nerqova-packed --out runs/nerqova.json
+uv run python scripts/compare_engines.py --complete runs/reference.json runs/nerqova.json
 ```
 
-Run stock and candidate measurements in separate quiet windows on the same
-Mac. The [performance report](docs/performance.md) separates model-only, local
-complete-decision, and HTTP time. It also records rejected kernel probes and
-the limits of the measured gains.
+Run paired benchmarks in quiet windows on the same Mac. `runs/` is ignored.
+The separate [System One Computer Use](https://github.com/cgasgarth/system-one-computer-use)
+project connects typed text or Handy dictation, Cua Driver observations, and
+any System One decision endpoint to browser and desktop actions.
 
-## Research provenance and license
+## Provenance and license
 
-`src/nerqova/` contains the checkpoint loader, scorer, packed Metal kernel, and
-server. `models/` documents the trained heads. `evals/` holds suite manifests;
-`evidence/` holds versioned reports. The current checkpoint comes from the
-Kev-4B research release. The dependency on Kev source is pinned to
-`557598fced1dada75dfbf36ed144dce309ac6ceb`; [NOTICE](NOTICE) records its
-attribution. The performance comparisons against stock Kev MLX use this same
-checkpoint revision, not the moving Hugging Face default.
-
-Nerqova's original code is Apache-2.0. The packed kernel adapts MIT-licensed
-MLX-LM code. See [LICENSE](LICENSE), [NOTICE](NOTICE), and the
-[MLX-LM license](third_party/mlx_lm_LICENSE).
+Nerqova's source is Apache-2.0. Its packed kernel adapts MIT-licensed MLX-LM
+code. The public 4B checkpoint and the pinned Kev source dependency are research
+inputs, not weights created by this repository. See [NOTICE](NOTICE),
+[the model card](models/README.md), and [the performance record](docs/latest-performance.md)
+for revisions, hashes, training, and quality limits.

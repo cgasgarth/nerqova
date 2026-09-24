@@ -3,7 +3,9 @@
 from kev.model import user_tokens
 
 
-def workload(tok, state_tokens, questions):
+def workload(tok, state_tokens, questions, choices=3):
+    if choices < 2:
+        raise ValueError("choices must be at least two")
     sentence = "Customer ordered a blue shirt on Monday, paid for express delivery, and received a red shirt on Friday. "
     state = ""
     while len(user_tokens(tok, state)) < state_tokens:
@@ -13,7 +15,8 @@ def workload(tok, state_tokens, questions):
         "questions": [
             {
                 "instr": f"Which action best fits customer request {i}?",
-                "options": ["Refund the item", "Replace it with the blue shirt", "Ask for more information"],
+                "options": (["Refund the item", "Replace it with the blue shirt", "Ask for more information"]
+                            if choices == 3 else [f"Action {option}: handle the customer request" for option in range(choices)]),
                 "label": 1,
             }
             for i in range(questions)

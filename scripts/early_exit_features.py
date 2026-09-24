@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import mlx.core as mx
 
 from kev.data import materialize
 from kev.suite import CONTEXT, digest, load_split, read_manifest
@@ -39,7 +40,7 @@ def flush(path, items):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--run", default="jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1")
+    parser.add_argument("--run", default="jaredpalmer/kev-4b@1da696f7938f77c4cdf5471e92fd342baff41778")
     parser.add_argument("--suite", type=Path, default=Path("evals/v7/decision-v7"))
     parser.add_argument("--teacher", type=Path, default=Path("runs/weights/kev4b-v7-train-teacher.json.gz"))
     parser.add_argument("--split", choices=("train", "calibration"), required=True)
@@ -56,6 +57,8 @@ def main():
     records = load_split(args.suite, args.split)
     if args.limit is not None:
         records = records[:args.limit]
+    mx.set_cache_limit(1024 ** 3)
+    checkpoint, tok, model = load_model(args.run, packed_delta=True)
     teacher = None
     teacher_sha256 = None
     if args.split == "train":
@@ -64,14 +67,18 @@ def main():
         teacher_doc = json.loads(raw_teacher)
         if teacher_doc["_meta"]["suite_sha256"] != digest(args.suite / "manifest.json"):
             raise ValueError("teacher targets refer to another suite")
+        if teacher_doc["_meta"]["checkpoint_revision"] != Path(checkpoint.path).name:
+            raise ValueError("teacher targets refer to another checkpoint revision")
+        if teacher_doc["_meta"]["rows_sha256"] != digest(args.suite / "train.jsonl"):
+            raise ValueError("teacher targets refer to different training records")
         teacher = teacher_doc["targets"]
-    checkpoint, tok, model = load_model(args.run, packed_delta=True)
     args.out.mkdir(parents=True, exist_ok=True)
     metadata = {"run": args.run, "checkpoint_revision": Path(checkpoint.path).name,
                 "base_revision": checkpoint.meta.base_revision,
                 "suite_sha256": digest(args.suite / "manifest.json"),
                 "split": args.split, "layer": args.layer, "records": len(records),
                 "shard_records": args.shard_records,
+                "max_state_tokens": context["max_state"],
                 "teacher_sha256": teacher_sha256}
     meta_path = args.out / "manifest.json"
     if meta_path.exists():

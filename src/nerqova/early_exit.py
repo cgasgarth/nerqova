@@ -81,19 +81,27 @@ def anchor_vectors(model, hidden, rows):
     return vectors
 
 
+def required_exit_gap(option_count, gap, wide_gap):
+    return wide_gap if wide_gap is not None and option_count >= 14 else gap
+
+
 class EarlyExitDecisionModel(MLXDecisionModel):
     """Use a trained partial-layer head; continue uncertain rows exactly."""
 
-    def load_exit(self, path, threshold, checkpoint_revision):
+    def load_exit(self, path, gap, checkpoint_revision, wide_gap=None):
         artifact = torch.load(path, map_location="cpu", weights_only=True)
         if artifact["train_manifest"]["checkpoint_revision"] != checkpoint_revision:
             raise ValueError("exit head was trained for another checkpoint revision")
         self.exit_layer = int(artifact["layer"])
         if self.exit_layer not in (8, 16, 24):
             raise ValueError("unsupported exit layer")
-        if not 0 < threshold <= 1:
-            raise ValueError("exit confidence must be in (0, 1]")
-        self.exit_threshold = threshold
+        if not 0 <= gap < float("inf"):
+            raise ValueError("exit log odds gap must be finite and nonnegative")
+        if wide_gap is not None and not 0 <= wide_gap <= gap:
+            raise ValueError("wide-choice exit gap must be nonnegative and no larger than the base gap")
+        self.exit_gap = gap
+        self.exit_gap_wide = wide_gap
+        self.max_exit_state_tokens = int(artifact["train_manifest"]["max_state_tokens"])
         self.exit_temperature = float(artifact["temperature"])
         self.exit_suite_sha256 = artifact["train_manifest"].get("suite_sha256")
         if artifact["head_type"] != "pair":
@@ -151,12 +159,16 @@ class EarlyExitDecisionModel(MLXDecisionModel):
         state_ids, rows, chunk = encoded_rows(self, enc)
         if tuple(state_ids) != prefix["state_ids"]:
             raise ValueError("prefix does not match this record's state")
+        force_full = len(state_ids) > self.max_exit_state_tokens
         out = []
         deferred_count = 0
         verifier_vetoes = 0
         for start in range(0, len(rows), chunk):
             part = rows[start:start + chunk]
-            if hasattr(self, "verify_layer"):
+            if force_full:
+                hidden, branches = branch_at(self, part, prefix["cache"], self.exit_layer)
+                verify_logits = None
+            elif hasattr(self, "verify_layer"):
                 hidden, branches, check_hidden = branch_at_with_capture(
                     self, part, prefix["cache"], self.exit_layer, self.verify_layer,
                 )
@@ -167,18 +179,21 @@ class EarlyExitDecisionModel(MLXDecisionModel):
             else:
                 hidden, branches = branch_at(self, part, prefix["cache"], self.exit_layer)
                 verify_logits = None
-            early_logits = self._exit_logits(hidden, part)
-            deferred = []
-            for index, logits in enumerate(early_logits):
-                if float(F.softmax(logits, -1).max()) < self.exit_threshold:
-                    deferred.append(index)
-                elif verify_logits is not None:
-                    check = F.softmax(verify_logits[index], -1)
-                    uniform = 1 / len(check)
-                    margin = (float(check.max()) - uniform) / (1 - uniform)
-                    if margin < self.verify_threshold or int(check.argmax()) != int(logits.argmax()):
+            early_logits = [None] * len(part) if force_full else self._exit_logits(hidden, part)
+            deferred = list(range(len(part))) if force_full else []
+            if not force_full:
+                for index, logits in enumerate(early_logits):
+                    top_two = F.softmax(logits, -1).topk(2).values
+                    gap = float((top_two[0].clamp_min(1e-9) / top_two[1].clamp_min(1e-9)).log())
+                    if gap < required_exit_gap(len(logits), self.exit_gap, self.exit_gap_wide):
                         deferred.append(index)
-                        verifier_vetoes += 1
+                    elif verify_logits is not None:
+                        check = F.softmax(verify_logits[index], -1)
+                        uniform = 1 / len(check)
+                        margin = (float(check.max()) - uniform) / (1 - uniform)
+                        if margin < self.verify_threshold or int(check.argmax()) != int(logits.argmax()):
+                            deferred.append(index)
+                            verifier_vetoes += 1
             deferred_count += len(deferred)
             if deferred:
                 if not prefix["full"]:

@@ -92,7 +92,7 @@ def calibration_report(logits_rows, teacher_rows, labels):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--run", default="jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1")
+    parser.add_argument("--run", default="jaredpalmer/kev-4b@1da696f7938f77c4cdf5471e92fd342baff41778")
     parser.add_argument("--train-dir", required=True, type=Path)
     parser.add_argument("--calibration-dir", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
@@ -106,7 +106,7 @@ def main():
         parser.error("epochs, batch-size and learning-rate must be positive; teacher-weight must be in [0, 1]")
     train_meta = json.loads((args.train_dir / "manifest.json").read_text())
     cal_meta = json.loads((args.calibration_dir / "manifest.json").read_text())
-    for key in ("run", "checkpoint_revision", "base_revision", "suite_sha256", "layer"):
+    for key in ("run", "checkpoint_revision", "base_revision", "suite_sha256", "layer", "max_state_tokens"):
         if train_meta[key] != cal_meta[key]:
             raise ValueError(f"feature inputs disagree on {key}")
     if train_meta["split"] != "train" or cal_meta["split"] != "calibration":

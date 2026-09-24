@@ -1,0 +1,82 @@
+{
+  "schema": "nerqova-prefix-materialization-inconclusive-v1",
+  "decision": "Inconclusive performance test under constrained power conditions; parity passed, candidate not promoted, runtime change removed.",
+  "checkpoint_revision": "1da696f7938f77c4cdf5471e92fd342baff41778",
+  "base_revision": "1001bb4d826a52d1f399e183466143f4da7b741b",
+  "adapter_sha256": "c2c99077b58cd4a604304b743b7db5391187ef1d58e575f90c554c744aa23d65",
+  "head_sha256": "9a3051c3676f0be29d885935b6f50c287f7acf04e3cb29a6fed82ca3e5540b7e",
+  "temperature": 2.962195104573128,
+  "encoded_request_sha256": "cbd28986931543e2da14e54652e4ca4e5dceff4b1c8f3762bce31227d32086e0",
+  "code_sha": "6062680ab7546c19322359b17849510854db2e4b",
+  "code_dirty": true,
+  "peak_rss_gib": 9.097442626953125,
+  "mlx_cache_limit_gib": 1,
+  "reps": 30,
+  "warmups": 5,
+  "experiment": "Skip unused prefix hidden output evaluation; materialize all retained cache arrays, including full KV capacity.",
+  "parity": {
+    "checks": 28,
+    "max_probability_delta_against_stock": 0.00023919343948364258,
+    "max_probability_delta_against_packed": 0.0,
+    "all_choices_equal": true
+  },
+  "complete_local_blocks": [
+    {
+      "mode": "baseline",
+      "new_state": {
+        "median_ms": 1706.4575620024698,
+        "p95_ms": 1822.762290998071
+      },
+      "cached_state": {
+        "median_ms": 683.7352084985469,
+        "p95_ms": 804.1178330022376
+      }
+    },
+    {
+      "mode": "candidate",
+      "new_state": {
+        "median_ms": 1675.129957999161,
+        "p95_ms": 1747.5992909967317
+      },
+      "cached_state": {
+        "median_ms": 696.7003124991606,
+        "p95_ms": 734.0057500041439
+      }
+    },
+    {
+      "mode": "candidate",
+      "new_state": {
+        "median_ms": 1822.710812499281,
+        "p95_ms": 2821.434292003687
+      },
+      "cached_state": {
+        "median_ms": 723.3458539994899,
+        "p95_ms": 1141.6588749998482
+      }
+    },
+    {
+      "mode": "baseline",
+      "new_state": {
+        "median_ms": 1687.7381459999015,
+        "p95_ms": 2210.9281250013737
+      },
+      "cached_state": {
+        "median_ms": 696.6790205005964,
+        "p95_ms": 745.3220840034191
+      }
+    }
+  ],
+  "raw_report_sha256": "478f6d4de14abacced4c3472fae3ab832ea741a0b8a76a339b8b818d7b6a0acf",
+  "limitations": [
+    "Only one five-question request timing shape, 30 repetitions after five warmups per block.",
+    "Absolute latency was much slower than earlier latest-checkpoint measurements. Root later confirmed AC Low Power Mode, a 65 W charger, and 3% battery while charging; these conditions likely explain the slowdown but were not isolated experimentally.",
+    "Substantial time drift and constrained power prevent a performance conclusion. Candidate remains archived for a properly powered repeat. No Xcode capture used."
+  ],
+  "power_conditions_reported_by_root": {
+    "source": "system_profiler",
+    "ac_low_power_mode": true,
+    "charger_watts": 65,
+    "battery_percent": 3,
+    "charging": true
+  }
+}

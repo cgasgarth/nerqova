@@ -5,6 +5,8 @@ import json
 import subprocess
 from pathlib import Path
 
+import mlx.core as mx
+
 from kev.benchmark import evaluate_records
 from kev.checkpoint import Checkpoint, LoadOptions
 from kev.predictors import LocalPredictor
@@ -20,26 +22,31 @@ def git(*args):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--allow-test", action="store_true", help="required for one final locked-test read")
-    parser.add_argument("--engine", choices=("kev-mlx", "nerqova-early"), required=True)
-    parser.add_argument("--run", default="jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1")
+    parser.add_argument("--engine", choices=("kev-mlx", "nerqova-packed", "nerqova-early"), required=True)
+    parser.add_argument("--run", default="jaredpalmer/kev-4b@1da696f7938f77c4cdf5471e92fd342baff41778")
     parser.add_argument("--suite", type=Path, default=Path("evals/v7/decision-v7"))
     parser.add_argument("--transfer", type=Path, default=Path("evals/v4/transfer-v4"))
     parser.add_argument("--exit-head", type=Path)
-    parser.add_argument("--exit-threshold", type=float)
+    parser.add_argument("--exit-gap", type=float)
+    parser.add_argument("--exit-gap-wide", type=float)
     parser.add_argument("--verify-head", type=Path)
     parser.add_argument("--verify-threshold", type=float)
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
     if not args.allow_test:
         parser.error("locked test requires explicit --allow-test")
-    gate = (args.exit_head, args.exit_threshold, args.verify_head, args.verify_threshold)
-    if args.engine == "nerqova-early" and any(value is None for value in gate):
-        parser.error("nerqova-early requires both heads and thresholds")
-    if args.engine == "kev-mlx" and any(value is not None for value in gate):
+    gate = (args.exit_head, args.exit_gap, args.exit_gap_wide,
+            args.verify_head, args.verify_threshold)
+    if args.engine == "nerqova-early" and (args.exit_head is None or args.exit_gap is None):
+        parser.error("nerqova-early requires an exit head and gap")
+    if (args.verify_head is None) != (args.verify_threshold is None):
+        parser.error("verifier head and threshold must be set together")
+    if args.engine != "nerqova-early" and any(value is not None for value in gate):
         parser.error("head options require nerqova-early")
     if git("status", "--porcelain"):
         parser.error("locked test requires a clean committed checkout")
 
+    mx.set_cache_limit(1024 ** 3)
     suite = read_manifest(args.suite)
     transfer = read_manifest(args.transfer)
     checkpoint = Checkpoint(args.run)
@@ -50,7 +57,7 @@ def main():
         if args.engine == "kev-mlx"
         else MLXPredictor(args.run, context=suite.get("context", CONTEXT),
                           packed_delta=True, exit_head=args.exit_head,
-                          exit_threshold=args.exit_threshold,
+                          exit_gap=args.exit_gap, exit_gap_wide=args.exit_gap_wide,
                           verify_head=args.verify_head,
                           verify_threshold=args.verify_threshold)
     )
@@ -76,7 +83,8 @@ def main():
         "adapter_sha256": digest(checkpoint.file("adapter_model.safetensors")),
         "head_sha256": digest(checkpoint.file("head.pt")),
         "exit_head_sha256": digest(args.exit_head) if args.exit_head else None,
-        "exit_threshold": args.exit_threshold,
+        "exit_gap": args.exit_gap,
+        "exit_gap_wide": args.exit_gap_wide,
         "verify_head_sha256": digest(args.verify_head) if args.verify_head else None,
         "verify_threshold": args.verify_threshold,
         "suite_sha256": digest(args.suite / "manifest.json"),

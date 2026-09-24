@@ -1,0 +1,37 @@
+{
+  "schema": "nerqova-latest-checkpoint-packed-v1",
+  "checkpoint_revision": "1da696f7938f77c4cdf5471e92fd342baff41778",
+  "base_revision": "1001bb4d826a52d1f399e183466143f4da7b741b",
+  "adapter_sha256": "c2c99077b58cd4a604304b743b7db5391187ef1d58e575f90c554c744aa23d65",
+  "head_sha256": "9a3051c3676f0be29d885935b6f50c287f7acf04e3cb29a6fed82ca3e5540b7e",
+  "temperature": 2.962195104573128,
+  "code_sha": "14b511a48f19a74cb90b093046bcf0ee5e9faf6c",
+  "code_dirty": false,
+  "chip": "Apple M5 Pro, 20 GPU cores, 48 GiB unified memory",
+  "mlx": "0.32.2",
+  "mlx_lm": "0.31.3",
+  "workload": "Complete in-process five-question decision, about 270 state tokens, 30 repetitions after five warmups per engine; loaded model; separate sequential stock then packed processes",
+  "encoded_request_sha256": "cbd28986931543e2da14e54652e4ca4e5dceff4b1c8f3762bce31227d32086e0",
+  "stock_mlx": {
+    "new_state_p50_ms": 196.58,
+    "new_state_p95_ms": 196.95,
+    "cached_state_p50_ms": 79.78,
+    "cached_state_p95_ms": 80.12,
+    "raw_report_sha256": "56b2e845eee007b0c6700cc732930bff62242c41f83c889325ad17167d344474"
+  },
+  "nerqova_packed": {
+    "new_state_p50_ms": 183.48,
+    "new_state_p95_ms": 189.65,
+    "cached_state_p50_ms": 74.61,
+    "cached_state_p95_ms": 75.2,
+    "raw_report_sha256": "0cfe9cc78831816bd77301fa3f078bb86bf386ae567878623548f66b9dd9f02f"
+  },
+  "new_state_speedup": 1.0714,
+  "cached_state_speedup": 1.0693,
+  "all_five_choices_equal": true,
+  "limitations": [
+    "One sequential timing block per engine on one request shape; not a distribution over user requests.",
+    "This measures the same-weight packed Metal path only; the old exit heads are incompatible with this checkpoint.",
+    "Raw samples are retained locally under ignored runs/new-checkpoint/; this public summary records their SHA256 hashes."
+  ]
+}

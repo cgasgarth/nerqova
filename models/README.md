@@ -1,42 +1,90 @@
-# Nerqova conditional exit heads
+# Nerqova exit-head research
 
-These are Nerqova's trained decision readouts for the released Kev-4B backbone. The backbone, LoRA adapter, and full Kev pointer head remain unchanged. The layer-16 head can answer a request early; the layer-8 head checks agreement. A question continues through all 32 layers if the layer-16 confidence is below **0.90**, the layer-8 confidence margin above uniform chance is below **0.26**, or their top choices differ. The margin is `(top_probability - 1 / option_count) / (1 - 1 / option_count)`. The full path retains the original Kev readout.
+Nerqova trains a partial-backbone readout for the pinned public 4B decision
+checkpoint. Its backbone, adapter, and full pointer head remain unchanged.
+These heads add an optional conditional exit; they are not the default runtime
+path because the selected quality-safe gate did not improve the fixed complete
+request benchmark.
 
-| Release asset | Layer | SHA-256 |
-| --- | ---: | --- |
-| `kev4b-exit16-pair.pt` | 16 | `18ee6b7db1934325aa481199ea7b867f14b26ba02d234aee4c4f80bfe5180d11` |
-| `kev4b-verify8-pair.pt` | 8 | `5c24356fba369816250226941eb781916393a15853235d6bac60b0f2f221d066` |
-| `kev4b-v7-train-teacher.json.gz` | training targets | `345d4d485d5db146187cc12cfbfefd4c9b1ff852baec9bb1e61d26d0c7b2b39b` |
+## Assets and provenance
 
-Both heads use a 384-wide nonlinear pair readout over the normalized decision and option anchors. They were trained on **12,576** frozen decision-v7 training records (**15,576** questions), with hard labels and the released Kev-4B probability targets at equal loss weight. The separate decision-v7 calibration split has **968** records (**1,148** questions). Training stopped at the lowest calibration NLL and fitted one temperature per head. The training manifest SHA-256 is `a8f50e481b7d90b97da049e0ff6a01cee2f1ed204aed61a8265af0edbb5514d2`; the **uncompressed** teacher target SHA-256 is `eee4a3a02b19f9827e9475d2347ae8671b4ea9c0c0e2d4d1b0aff7bb52930d9b`.
+The v0.2.0 release contains these files. Keep them under ignored `runs/weights/`.
 
-The heads require Kev-4B snapshot `485ace8703592fcf405488b262449990824cfed1` and Qwen3.5-4B base revision `1001bb4d826a52d1f399e183466143f4da7b741b`. Nerqova checks the checkpoint revision when it loads them. The three assets are outside Git in the [v0.1.0 release](https://github.com/cgasgarth/nerqova/releases/tag/v0.1.0); download them to ignored `runs/weights/`. `scripts/early_exit_features.py`, `scripts/train_early_exit.py`, and `scripts/select_exit_gate.py` reproduce the feature, training, and calibration steps. Extracted feature shards stay under ignored `runs/`.
+| Asset | Purpose | SHA-256 |
+| --- | --- | --- |
+| `nerqova-exit16-r8.pt` | Layer-16 conditional readout | `d2d49c05c9f4b15d5a1e16ae4a9fc0ddd12d060ff7f62a9eadec70f1e720c2fc` |
+| `nerqova-exit8-r8.pt` | Layer-8 research readout; not used by the selected gate | `d729281dbf32158e5daaf1cbf15ac6afea822dd38aefe9a8ce7d0b9ed8cb54bd` |
+| `nerqova-teacher-r8.json.gz` | Training-split full-model probability targets | `6c131dcb2c16db4b18778f74f57e90844a3c86fa02639f572b35574b544a5106` |
+
+Both heads require checkpoint revision
+`1da696f7938f77c4cdf5471e92fd342baff41778`, whose base is
+`Qwen/Qwen3.5-4B-Base@1001bb4d826a52d1f399e183466143f4da7b741b`.
+The loader checks the checkpoint revision. The teacher targets contain served
+probabilities from the same full checkpoint for 12,576 decision-v7 training
+records (15,576 questions). They contain no development or locked-test rows.
+
+Training extracted normalized decision and option vectors after layers 8 and
+16. A 384-wide nonlinear pair head learned from hard labels and full-model
+probabilities with equal loss weight. Epoch and temperature were selected on
+968 separate calibration records (1,148 questions). Layer 8 reached 62.46%
+calibration accuracy, so it is not used as a verifier. Layer 16 reached 85.28%
+against 87.54% for the full model before gating.
+
+## Selected gate
+
+For each question, compute `ln(top_probability / runner_up_probability)` from
+the calibrated layer-16 readout. Exit when the gap is at least **5.0** for
+2–13 options, or **2.5** for 14 or more options. A 15-option distribution
+with a 60% winner and a 2.9% runner-up passes the wide-choice rule even
+though the top probability is below 90%. Other questions continue through
+all 32 layers and use the original full pointer head.
+
+The thresholds came from calibration, then passed the frozen decision-v7,
+transfer-v4, and documents-v1 development suites. Calibration had zero
+full-model choice changes at this gate and accepted 25.4% of complete records.
+On development, the gate changed zero top choices across 1,468 decision-v7,
+764 transfer-v4, and 920 documents-v1 questions. It exited on 364 / 1,204,
+95 / 764, and 11 / 568 complete records, respectively. Accuracy matched the
+full model. Brier and ECE stayed within the predeclared limits; see
+[the quality table](../docs/latest-performance.md). A state longer than the
+384-token training context always uses the full model. These finite suites
+cannot guarantee choice identity on new inputs.
+
+The selected gate was **slower than the default packed runtime** on the fixed
+five-question and 15-option fixtures. Use it as a research option for workloads
+where its exits and calibration are useful; measure your own request mix. It did
+not pass the predeclared speed gate, so this head was not advanced to a locked
+test or made the default.
 
 ```bash
 mkdir -p runs/weights
-gh release download v0.1.0 --repo cgasgarth/nerqova --pattern 'kev4b-*' --dir runs/weights
-```
-
-```bash
-uv run python scripts/early_exit_features.py --split train --layer 16 --out runs/early-exit/train-l16
-uv run python scripts/early_exit_features.py --split calibration --layer 16 --out runs/early-exit/calibration-l16
-uv run python scripts/train_early_exit.py --train-dir runs/early-exit/train-l16 \
-  --calibration-dir runs/early-exit/calibration-l16 --out runs/early-exit/head-l16-pair.pt
-# Repeat the three commands with layer 8 and its own directories.
-uv run python scripts/select_exit_gate.py runs/early-exit/head-l16-pair.pt \
-  --verify-head runs/early-exit/head-l8-pair.pt --verify-threshold 0.26
-```
-
-```bash
+gh release download v0.2.0 --repo cgasgarth/nerqova \
+  --pattern 'nerqova-*.pt' --dir runs/weights
 uv run --no-dev python -m nerqova.serve \
-  --run jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1 \
-  --packed-delta \
-  --exit-head runs/weights/kev4b-exit16-pair.pt --exit-threshold 0.90 \
-  --verify-head runs/weights/kev4b-verify8-pair.pt --verify-threshold 0.26
+  --run jaredpalmer/kev-4b@1da696f7938f77c4cdf5471e92fd342baff41778 \
+  --packed-delta --exit-head runs/weights/nerqova-exit16-r8.pt \
+  --exit-gap 5 --exit-gap-wide 2.5 --port 8009
 ```
 
-The frozen development suites kept full coverage and matched stock accuracy. On decision-v7 clean questions, stock / conditional Brier was **0.18478 / 0.18423**, ECE **0.02318 / 0.02413**, and NLL **0.35832 / 0.35335**. On transfer-v4 clean questions, Brier was **0.26436 / 0.26396**, ECE **0.03635 / 0.04227**, and NLL **0.47094 / 0.46791**. ECE rose slightly on both suites; paired uncertainty intervals include zero. The varied decision-v7 median model time improved only about **1.09×** because most records deferred. See [performance evidence](../docs/performance.md) for the complete request benchmark and its limits.
+## Reproduce the training path
 
-The one-time locked comparison also had full coverage and zero choice flips across 2,204 questions. Decision-v7 accuracy was **0.87167** for both engines; transfer-v4 accuracy was **0.83384** for both. Brier improved from **0.18895 to 0.18837** and from **0.23205 to 0.23155**. ECE rose from **0.01924 to 0.01993** and from **0.03556 to 0.04332**. Both ECE differences met the predeclared 0.010 limit, and paired 95% intervals included zero. The [versioned evidence](../evidence/conditional-exit-e23ddd3.json) records the exact hashes and samples.
+```bash
+uv run python scripts/export_teacher_targets.py \
+  --run jaredpalmer/kev-4b@1da696f7938f77c4cdf5471e92fd342baff41778 \
+  --out runs/new-checkpoint/teacher-train.json.gz
+uv run python scripts/early_exit_features.py --split train --layer 16 \
+  --teacher runs/new-checkpoint/teacher-train.json.gz \
+  --out runs/new-checkpoint/train-l16
+uv run python scripts/early_exit_features.py --split calibration --layer 16 \
+  --out runs/new-checkpoint/calibration-l16
+uv run python scripts/train_early_exit.py \
+  --train-dir runs/new-checkpoint/train-l16 \
+  --calibration-dir runs/new-checkpoint/calibration-l16 \
+  --out runs/new-checkpoint/head-l16.pt
+uv run python scripts/select_exit_gate.py runs/new-checkpoint/head-l16.pt \
+  --wide-gap 2.5 --out runs/new-checkpoint/gates.json
+```
 
-These heads were trained for Kev's typed decisions. They have no computer-use or browser-action quality claim.
+Repeat feature extraction and training with layer 8 only if studying an earlier
+readout. The repo uses [Kev](https://github.com/jaredpalmer/kev) checkpoint
+format and frozen suites as research inputs; see [NOTICE](../NOTICE).

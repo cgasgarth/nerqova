@@ -11,6 +11,9 @@ import json
 import subprocess
 from pathlib import Path
 
+import mlx.core as mx
+import mlx.nn as nn
+
 from kev.benchmark import evaluate_records
 from kev.checkpoint import Checkpoint, LoadOptions
 from kev.predictors import LocalPredictor
@@ -37,21 +40,29 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--engine", choices=["kev-mlx", "nerqova", "nerqova-unmasked", "nerqova-packed", "nerqova-early"], required=True)
     parser.add_argument("--exit-head", type=Path)
-    parser.add_argument("--exit-threshold", type=float)
+    parser.add_argument("--exit-gap", type=float)
+    parser.add_argument("--exit-gap-wide", type=float)
     parser.add_argument("--verify-head", type=Path)
     parser.add_argument("--verify-threshold", type=float)
-    parser.add_argument("--run", default="jaredpalmer/kev-4b@485ace8703592fcf405488b262449990824cfed1")
+    parser.add_argument("--quant-bits", type=int, choices=(4, 8),
+                        help="quantize the merged stock MLX backbone after loading")
+    parser.add_argument("--run", default="jaredpalmer/kev-4b@1da696f7938f77c4cdf5471e92fd342baff41778")
     parser.add_argument("--suite", type=Path, default=Path("evals/v7/decision-v7"))
     parser.add_argument("--transfer", type=Path, default=Path("evals/v4/transfer-v4"))
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
-    if args.engine == "nerqova-early" and (args.exit_head is None or args.exit_threshold is None):
-        parser.error("nerqova-early requires --exit-head and --exit-threshold")
-    if args.engine != "nerqova-early" and (args.exit_head is not None or args.exit_threshold is not None):
+    if args.engine == "nerqova-early" and (args.exit_head is None or args.exit_gap is None):
+        parser.error("nerqova-early requires --exit-head and --exit-gap")
+    if args.engine != "nerqova-early" and (args.exit_head is not None or args.exit_gap is not None or args.exit_gap_wide is not None):
         parser.error("exit options require nerqova-early")
+    if args.exit_gap_wide is not None and args.exit_gap is None:
+        parser.error("exit-gap-wide requires exit-gap")
     if (args.verify_head is None) != (args.verify_threshold is None) or (args.verify_head and args.engine != "nerqova-early"):
         parser.error("verifier options must be set together for nerqova-early")
+    if args.quant_bits and args.engine != "kev-mlx":
+        parser.error("quant-bits is a stock Kev MLX baseline only")
 
+    mx.set_cache_limit(1024 ** 3)
     checkpoint = Checkpoint(args.run)
     suite_manifest = read_manifest(args.suite)
     transfer_manifest = read_manifest(args.transfer)
@@ -61,13 +72,17 @@ def main():
             args.run, context=suite_manifest.get("context", CONTEXT),
             unmasked_branches=args.engine == "nerqova-unmasked",
             packed_delta=args.engine in ("nerqova-packed", "nerqova-early"),
-            exit_head=args.exit_head, exit_threshold=args.exit_threshold,
+            exit_head=args.exit_head, exit_gap=args.exit_gap, exit_gap_wide=args.exit_gap_wide,
             verify_head=args.verify_head, verify_threshold=args.verify_threshold,
         )
         if args.engine != "kev-mlx"
         else LocalPredictor(args.run, "mps", LoadOptions(backend="mlx"),
                             context=suite_manifest.get("context", CONTEXT))
     )
+    if args.quant_bits:
+        nn.quantize(predictor.model.lm, group_size=64, bits=args.quant_bits)
+        mx.eval(predictor.model.lm.parameters())
+        mx.clear_cache()
 
     development, _ = evaluate_records(
         load_split(args.suite, "development"), predictor, args.out / "development",
@@ -82,6 +97,8 @@ def main():
     report = {
         "run": args.run,
         "engine": args.engine,
+        "quant_bits": args.quant_bits,
+        "quant_group_size": 64 if args.quant_bits else None,
         "checkpoint": str(checkpoint.path),
         "base": checkpoint.meta.base,
         "base_revision": checkpoint.meta.base_revision,
@@ -89,7 +106,8 @@ def main():
         "head_sha256": digest(checkpoint.file("head.pt")),
         "served_temperature": predictor.temperature,
         "exit_head": str(args.exit_head) if args.exit_head else None,
-        "exit_threshold": args.exit_threshold,
+        "exit_gap": args.exit_gap,
+        "exit_gap_wide": args.exit_gap_wide,
         "verify_head_sha256": digest(args.verify_head) if args.verify_head else None,
         "verify_threshold": args.verify_threshold,
         "exit_head_sha256": digest(args.exit_head) if args.exit_head else None,

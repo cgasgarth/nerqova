@@ -6,6 +6,7 @@ script does not read development or locked test data.
 
 import argparse
 import json
+import math
 from collections import defaultdict
 from pathlib import Path
 
@@ -20,15 +21,24 @@ def quality(probabilities, labels):
                     for p, y in zip(probabilities, labels, strict=True)])
 
 
+def top_two_gap(probabilities):
+    top, second = sorted(probabilities, reverse=True)[:2]
+    return math.log(max(float(top), 1e-9) / max(float(second), 1e-9))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("artifact", type=Path)
     parser.add_argument("--verify-head", type=Path)
     parser.add_argument("--verify-threshold", type=float)
+    parser.add_argument("--wide-gap", type=float,
+                        help="alternate gap for questions with at least 14 options")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
     if (args.verify_head is None) != (args.verify_threshold is None):
         parser.error("verify-head and verify-threshold must be set together")
+    if args.wide_gap is not None and args.wide_gap < 0:
+        parser.error("wide-gap must be nonnegative")
     with np.load(args.artifact.with_suffix(".calibration.npz")) as data:
         offsets = data["offsets"]
         students = [data["student"][a:b] for a, b in zip(offsets[:-1], offsets[1:])]
@@ -45,11 +55,14 @@ def main():
             verifier = [data["student"][a:b] for a, b in zip(offsets[:-1], offsets[1:])]
     baseline = quality(teachers, labels)
     student = quality(students, labels)
-    thresholds = [0.0, 0.5, 0.7, 0.8, 0.9, 0.95, 0.97, 0.98, 0.99, 0.995, 0.999, 1.0]
+    gaps = [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25,
+            2.5, 2.75, 3.0, 3.5, 4.0, 5.0, 6.0]
     sweep = []
-    for threshold in thresholds:
+    for gap in gaps:
+        if args.wide_gap is not None and gap < args.wide_gap:
+            continue
         accepted = np.asarray([
-            float(max(p)) >= threshold and
+            top_two_gap(p) >= (args.wide_gap if args.wide_gap is not None and len(p) >= 14 else gap) and
             (verifier is None or (
                 (float(max(verifier[index])) - 1 / len(verifier[index]))
                 / (1 - 1 / len(verifier[index])) >= args.verify_threshold
@@ -63,7 +76,9 @@ def main():
             record_exit[int(record)].append(bool(use))
         teacher_flips = sum(bool(np.argmax(s) != np.argmax(t)) and use
                             for s, t, use in zip(students, teachers, accepted))
-        sweep.append({"threshold": threshold,
+        sweep.append({"exit_gap": gap,
+                      "exit_gap_wide": args.wide_gap,
+                      "wide_min_choices": 14 if args.wide_gap is not None else None,
                       "question_exit_rate": float(accepted.mean()),
                       "complete_record_exit_rate": float(np.mean([all(v) for v in record_exit.values()])),
                       "teacher_choice_flips": int(teacher_flips),

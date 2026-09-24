@@ -8,15 +8,17 @@ from kev.model import load_tokenizer, pad_id
 
 def load_model(run, *, temperature=None, lora_scale=1.0,
                unmasked_branches=False, packed_delta=False,
-               exit_head=None, exit_threshold=None,
+               exit_head=None, exit_gap=None, exit_gap_wide=None,
                verify_head=None, verify_threshold=None):
     """Return (checkpoint, tokenizer, scorer) with unchanged Kev weights."""
     import mlx.core as mx
 
     from .mlx_model import MLXDecisionModel, merge_lora
 
-    if (exit_head is None) != (exit_threshold is None):
-        raise ValueError("exit_head and exit_threshold must be set together")
+    if (exit_head is None) != (exit_gap is None):
+        raise ValueError("exit_head and exit_gap must be set together")
+    if exit_gap_wide is not None and exit_head is None:
+        raise ValueError("wide-choice exit gap requires an exit head")
     if exit_head is not None and not packed_delta:
         raise ValueError("early exit requires packed_delta")
     if exit_head is not None and (temperature is not None or lora_scale != 1.0):
@@ -46,7 +48,7 @@ def load_model(run, *, temperature=None, lora_scale=1.0,
     model.eval()
     model.head.temperature = meta.temperature if temperature is None else temperature
     if exit_head is not None:
-        model.load_exit(exit_head, exit_threshold, Path(checkpoint.path).name)
+        model.load_exit(exit_head, exit_gap, Path(checkpoint.path).name, exit_gap_wide)
     if verify_head is not None:
         model.load_verifier(verify_head, verify_threshold, Path(checkpoint.path).name)
     # Adapter and exit-head loading buffers are dead once the scorer is ready.
