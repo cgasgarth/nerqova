@@ -50,6 +50,8 @@ def main():
     parser.add_argument("--verify-threshold", type=float)
     parser.add_argument("--reps", type=int, default=50)
     parser.add_argument("--warmups", type=int, default=10)
+    parser.add_argument("--questions", type=int, default=5)
+    parser.add_argument("--choices", type=int, default=3)
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
     if args.engine == "nerqova-early" and (args.exit_head is None or args.exit_gap is None):
@@ -60,12 +62,12 @@ def main():
         parser.error("exit-gap-wide requires exit-gap")
     if (args.verify_head is None) != (args.verify_threshold is None) or (args.verify_head and args.engine != "nerqova-early"):
         parser.error("verifier options must be set together for nerqova-early")
-    if args.reps < 1 or args.warmups < 0:
-        parser.error("reps must be positive and warmups must be nonnegative")
+    if args.reps < 1 or args.warmups < 0 or args.questions < 1 or args.choices < 2:
+        parser.error("reps and questions must be positive; warmups nonnegative; choices at least two")
 
     checkpoint = Checkpoint(args.run)
     tok = load_tokenizer(checkpoint.meta.base, revision=checkpoint.meta.base_revision)
-    example = workload(tok, 270, 5)
+    example = workload(tok, 270, args.questions, args.choices)
     request = {
         "state": example["state"], "model": "kev-latest",
         "questions": {str(i): {"type": "choice", "instructions": q["instr"],
@@ -125,6 +127,8 @@ def main():
         "code_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()),
         "warmups": args.warmups,
         "reps": args.reps,
+        "questions": args.questions,
+        "choices_per_question": args.choices,
         "input_tokens": last["usage"]["input_tokens"],
         "choices": {key: answer["choice"] for key, answer in last["answers"].items()},
         "latency_ms": {"new_state": fresh, "cached_state": cached},
