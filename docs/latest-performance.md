@@ -111,6 +111,24 @@ cached than packed 4B on the five-question fixture, but lost 15.4 percentage
 points of transfer accuracy. These paths have different speed, quality, and
 memory tradeoffs; a single accuracy-times-speed number would hide that loss.
 
+### Complete loopback HTTP requests
+
+The same pinned 4B checkpoint was served through stock Kev MLX and Nerqova's
+packed server in separate quiet processes, each with a 1 GiB MLX reuse cap.
+Each report has five warmups and 30 measured requests. Cold requests used
+distinct state strings; cached requests repeated one state. Requests and final
+choices matched within each pair. HTTP transport, encoding, model work, and
+response formatting are included.
+
+| Request | Stock cold / cached median ms | Packed cold / cached median ms | Speedup cold / cached |
+| --- | ---: | ---: | ---: |
+| Five questions, 3 options each | 208.26 / 85.48 | 194.32 / 79.56 | 1.07× / 1.07× |
+| One question, 15 options | 210.07 / 86.55 | 154.56 / 81.91 | 1.36× / 1.06× |
+
+The [HTTP evidence](../evidence/http-r8-v0.2.json) records request hashes,
+report hashes, choices, and p95 values. These calls exclude browser and desktop
+observation time. The 2× cold/cached target was not met on either fixture.
+
 Two further model-specific candidates were measured and left out of the
 runtime. A terminal DeltaNet branch omitted final recurrent-state outputs and
 passed 28 parity checks. Its alternating complete-request blocks did not

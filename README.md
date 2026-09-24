@@ -66,6 +66,11 @@ rates, not GPU-only throughput. The one-question and five-question paths have
 different cache and branch work, so option and question count matter. The
 2× cold and cached target was **not met** on these workloads.
 
+The separate [loopback HTTP check](evidence/http-r8-v0.2.json) measured
+**208.26 → 194.32 ms cold** and **85.48 → 79.56 ms cached** for five questions
+(1.07× each). With one question and 15 options it measured **210.07 →
+154.56 ms cold** (1.36×) and **86.55 → 81.91 ms cached** (1.06×).
+
 On the same five-question fixture, 4-bit quantization of the reference model
 reduced active MLX memory from **7.90 to 2.27 GiB**, but ran at **204.60 /
 85.91 ms** and reduced transfer accuracy. A separate 0.8B reference ran at
