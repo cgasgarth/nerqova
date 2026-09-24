@@ -7,5 +7,6 @@ dist/
 demo/
 .DS_Store
 runs/
+local/
 evals/**/*.jsonl
 !evals/night2/dates_unknowable.jsonl
