@@ -41,6 +41,23 @@ states beyond the head's 384-token training context always use the full model.
 This documents result is about the CFPB source and question templates in the
 upstream suite. It does not establish quality on unrelated documents.
 
+### One locked comparison of the default path
+
+After code freeze at `d93a692cf8e168c6ab7cd0cd6557d905ca9767e6`, stock
+MLX and the default packed path each read the decision-v7 and transfer-v4
+locked partitions once. Both covered every record and matched accuracy:
+
+| Locked partition | Stock accuracy / Brier / ECE | Packed accuracy / Brier / ECE | Top-choice changes |
+| --- | --- | --- | ---: |
+| decision-v7, 1,440 questions | .87500 / .181992 / .024896 | .87500 / .181997 / .024947 | 0 |
+| transfer-v4, 764 questions | .83384 / .233569 / .036057 | .83384 / .233564 / .036048 | 0 |
+
+The maximum probability difference was 0.00036 on decision-v7 and 0.00019 on
+transfer-v4. The optional exit head failed its speed gate and **was not** read
+on the locked partitions. The [versioned evidence](../evidence/r8-v0.2.json)
+contains run hashes, coverage, paired row parity, and the complete-request
+sample summaries.
+
 ## Complete-request latency
 
 Apple M5 Pro, macOS 26.5.2, MLX 0.32.2, mlx-lm 0.31.3, Python 3.13.15.

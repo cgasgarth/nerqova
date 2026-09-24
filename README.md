@@ -61,7 +61,7 @@ setting and a 94 W adapter; the reports record that conflict.
 | Five questions, 3 options each | 202.55 / 82.51 ms | 197.18 / 80.47 ms | 1.03× / 1.03× |
 
 The five-question request is about **5.07 decisions/s cold** and **12.43
- decisions/s cached** on the packed path. These are serial complete-request
+decisions/s cached** on the packed path. These are serial complete-request
 rates, not GPU-only throughput. The one-question and five-question paths have
 different cache and branch work, so option and question count matter. The
 2× cold and cached target was **not met** on these workloads.
@@ -71,7 +71,8 @@ reduced active MLX memory from **7.90 to 2.27 GiB**, but ran at **204.60 /
 85.91 ms** and reduced transfer accuracy. A separate 0.8B reference ran at
 **43.94 / 19.39 ms**, with lower transfer accuracy. The [comparison report](docs/latest-performance.md)
 shows accuracy, calibration, memory, p95 latency, and each optimization's
-contribution. Versioned raw evidence is in `evidence/`.
+contribution. The [versioned evidence](evidence/r8-v0.2.json) records report
+hashes and raw sample summaries.
 
 ## Quality
 
@@ -82,6 +83,8 @@ reference reached **87.34%** decision-v7 clean accuracy, **80.49%** transfer-v4
 clean accuracy, and **89.35%** documents-v1 clean accuracy with full coverage.
 The optional trained exit preserved these development choices under its selected
 gate, but its probabilities can differ more. [See the measured limits](docs/latest-performance.md).
+On the locked decision-v7 and transfer-v4 tests, the default packed path again
+changed **zero choices across 2,204 questions** and matched stock accuracy.
 
 ## Verify
 
