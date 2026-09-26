@@ -44,7 +44,7 @@ def main():
     parser.add_argument("--suite", type=Path, default=Path("evals/v7/decision-v7"))
     parser.add_argument("--teacher", type=Path, default=Path("runs/weights/kev4b-v7-train-teacher.json.gz"))
     parser.add_argument("--split", choices=("train", "calibration"), required=True)
-    parser.add_argument("--layer", type=int, choices=(8, 16, 24), required=True)
+    parser.add_argument("--layer", type=int, choices=(8, 12, 16, 24), required=True)
     parser.add_argument("--shard-records", type=int, default=128)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--out", type=Path, required=True)

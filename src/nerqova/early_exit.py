@@ -90,10 +90,11 @@ class EarlyExitDecisionModel(MLXDecisionModel):
 
     def load_exit(self, path, gap, checkpoint_revision, wide_gap=None):
         artifact = torch.load(path, map_location="cpu", weights_only=True)
-        if artifact["train_manifest"]["checkpoint_revision"] != checkpoint_revision:
-            raise ValueError("exit head was trained for another checkpoint revision")
+        serving = artifact.get("serving_manifest", artifact["train_manifest"])
+        if serving["checkpoint_revision"] != checkpoint_revision:
+            raise ValueError("exit head targets another checkpoint revision")
         self.exit_layer = int(artifact["layer"])
-        if self.exit_layer not in (8, 16, 24):
+        if self.exit_layer not in (8, 12, 16, 24):
             raise ValueError("unsupported exit layer")
         if not 0 <= gap < float("inf"):
             raise ValueError("exit log odds gap must be finite and nonnegative")
@@ -101,7 +102,7 @@ class EarlyExitDecisionModel(MLXDecisionModel):
             raise ValueError("wide-choice exit gap must be nonnegative and no larger than the base gap")
         self.exit_gap = gap
         self.exit_gap_wide = wide_gap
-        self.max_exit_state_tokens = int(artifact["train_manifest"]["max_state_tokens"])
+        self.max_exit_state_tokens = int(serving["max_state_tokens"])
         self.exit_temperature = float(artifact["temperature"])
         self.exit_suite_sha256 = artifact["train_manifest"].get("suite_sha256")
         if artifact["head_type"] != "pair":
@@ -111,8 +112,9 @@ class EarlyExitDecisionModel(MLXDecisionModel):
 
     def load_verifier(self, path, threshold, checkpoint_revision):
         artifact = torch.load(path, map_location="cpu", weights_only=True)
-        if artifact["train_manifest"]["checkpoint_revision"] != checkpoint_revision:
-            raise ValueError("verifier head was trained for another checkpoint revision")
+        serving = artifact.get("serving_manifest", artifact["train_manifest"])
+        if serving["checkpoint_revision"] != checkpoint_revision:
+            raise ValueError("verifier head targets another checkpoint revision")
         if artifact["train_manifest"].get("suite_sha256") != self.exit_suite_sha256:
             raise ValueError("verifier head was trained for another suite")
         if int(artifact["layer"]) >= self.exit_layer:
@@ -120,6 +122,7 @@ class EarlyExitDecisionModel(MLXDecisionModel):
         if not 0 < threshold <= 1:
             raise ValueError("verifier confidence must be in (0, 1]")
         self.verify_layer = int(artifact["layer"])
+        self.max_exit_state_tokens = min(self.max_exit_state_tokens, int(serving["max_state_tokens"]))
         self.verify_threshold = threshold
         self.verify_temperature = float(artifact["temperature"])
         if artifact["head_type"] != "pair":
@@ -153,9 +156,9 @@ class EarlyExitDecisionModel(MLXDecisionModel):
         logits = (joint @ weights["joint.2.weight"].T
                   + weights["joint.2.bias"]).squeeze(-1)
         logits = logits / temperature
-        return self._host_batches([(logits, counts)])
+        return logits, counts
 
-    def _score_with_prefix(self, enc, prefix):
+    def _score_with_prefix(self, enc, prefix, prepared=None):
         state_ids, rows, chunk = encoded_rows(self, enc)
         if tuple(state_ids) != prefix["state_ids"]:
             raise ValueError("prefix does not match this record's state")
@@ -165,24 +168,43 @@ class EarlyExitDecisionModel(MLXDecisionModel):
         verifier_vetoes = 0
         for start in range(0, len(rows), chunk):
             part = rows[start:start + chunk]
-            if force_full:
+            if prepared is not None:
+                hidden, check_hidden, whole_hidden = prepared
+                verifier = (self._exit_logits(
+                    check_hidden, part, weights=self._verify_weights,
+                    temperature=self.verify_temperature,
+                ) if check_hidden is not None and not force_full else None)
+            elif force_full:
                 hidden, branches = branch_at(self, part, prefix["cache"], self.exit_layer)
-                verify_logits = None
+                verifier = None
             elif hasattr(self, "verify_layer"):
                 hidden, branches, check_hidden = branch_at_with_capture(
                     self, part, prefix["cache"], self.exit_layer, self.verify_layer,
                 )
-                verify_logits = self._exit_logits(
+                verifier = self._exit_logits(
                     check_hidden, part, weights=self._verify_weights,
                     temperature=self.verify_temperature,
                 )
             else:
                 hidden, branches = branch_at(self, part, prefix["cache"], self.exit_layer)
+                verifier = None
+            if force_full:
+                early_logits = [None] * len(part)
                 verify_logits = None
-            early_logits = [None] * len(part) if force_full else self._exit_logits(hidden, part)
+            else:
+                early = self._exit_logits(hidden, part)
+                if verifier is None:
+                    early_logits = self._host_batches([early])
+                    verify_logits = None
+                else:
+                    mx.eval(verifier[0], early[0])
+                    both = self._host_batches([verifier, early])
+                    verify_logits, early_logits = both[:len(part)], both[len(part):]
             deferred = list(range(len(part))) if force_full else []
             if not force_full:
                 for index, logits in enumerate(early_logits):
+                    if len(logits) == 1:
+                        continue
                     top_two = F.softmax(logits, -1).topk(2).values
                     gap = float((top_two[0].clamp_min(1e-9) / top_two[1].clamp_min(1e-9)).log())
                     if gap < required_exit_gap(len(logits), self.exit_gap, self.exit_gap_wide):
@@ -196,6 +218,23 @@ class EarlyExitDecisionModel(MLXDecisionModel):
                             verifier_vetoes += 1
             deferred_count += len(deferred)
             if deferred:
+                if prepared is not None:
+                    count = len(state_ids)
+                    for entry in prefix["cache"][self.exit_layer:]:
+                        if isinstance(entry, ArraysCache):
+                            entry.capture_prefix_tokens = count
+                    finished = run_layers(self.text, whole_hidden, prefix["cache"],
+                                          self.exit_layer, len(self.text.layers))
+                    for entry in prefix["cache"][self.exit_layer:]:
+                        if isinstance(entry, ArraysCache):
+                            del entry.capture_prefix_tokens
+                        else:
+                            entry.trim(len(part[0]["ids"]))
+                    prefix["full"] = True
+                    scores = self._batch_logits(self.text.norm(finished[:, count:]),
+                                                [(part[0]["decide"], part[0]["opts"])])
+                    out.extend(self._host_batches([scores]))
+                    continue
                 if not prefix["full"]:
                     run_layers(self.text, prefix["hidden"], prefix["cache"], self.exit_layer, len(self.text.layers))
                     prefix["full"] = True
@@ -223,9 +262,38 @@ class EarlyExitDecisionModel(MLXDecisionModel):
         return self._score_with_prefix(enc, self.prefix(enc))
 
     def probs(self, enc):
-        return [F.softmax(logits, -1) for logits in self.forward(enc)]
+        return self.probs_and_prefix(enc)[0]
 
     def probs_and_prefix(self, enc):
+        state_ids, rows, _ = encoded_rows(self, enc)
+        if self.packed_delta and state_ids and len(rows) == 1:
+            count = len(state_ids)
+            row = rows[0]
+            cache = make_prompt_cache(self.lm)
+            for entry in cache[:self.exit_layer]:
+                if isinstance(entry, ArraysCache):
+                    entry.capture_prefix_tokens = count
+            hidden = self.text.embed_tokens(mx.array([state_ids + row["ids"]], dtype=mx.int32))
+            check_hidden = None
+            for index in range(self.exit_layer):
+                layer = self.text.layers[index]
+                mask = (create_ssm_mask(hidden, cache[index]) if layer.is_linear
+                        else create_attention_mask(hidden, cache[index]))
+                hidden = layer(hidden, mask=mask, cache=cache[index])
+                if index + 1 == getattr(self, "verify_layer", None):
+                    check_hidden = hidden[:, count:]
+            mx.eval(hidden, check_hidden)
+            for entry in cache[:self.exit_layer]:
+                if isinstance(entry, ArraysCache):
+                    del entry.capture_prefix_tokens
+                else:
+                    entry.trim(len(row["ids"]))
+            prefix = {"state_ids": tuple(state_ids), "hidden": hidden[:, :count],
+                      "cache": cache, "full": False}
+            logits = self._score_with_prefix(
+                enc, prefix, prepared=(hidden[:, count:], check_hidden, hidden),
+            )
+            return [F.softmax(value, -1) for value in logits], prefix
         prefix = self.prefix(enc)
         return [F.softmax(logits, -1) for logits in self._score_with_prefix(enc, prefix)], prefix
 

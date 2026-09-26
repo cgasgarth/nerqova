@@ -153,6 +153,8 @@ def main():
             "cached_state": measure(server, request, args.reps, args.warmups, False),
         },
     }
+    if args.engine == "nerqova-early":
+        result["exit_stats"] = model.last_exit_stats
     output = json.dumps(result, indent=2)
     print(output)
     if args.out:

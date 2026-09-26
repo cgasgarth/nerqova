@@ -136,6 +136,25 @@ def test_early_exit_fallback_preserves_full_logits(tmp_path):
     for logits, probability in zip(expected, verified, strict=True):
         assert float((torch.softmax(logits, -1) - probability).abs().max()) < 1e-4
 
+    # A captured single-question prefix must support fallback and later questions.
+    single = model.encode(tok, {**rec, "questions": [rec["questions"][0]]})
+    reference, reference_prefix = MLXDecisionModel.probs_and_prefix(model, single)
+    first, captured = model.probs_and_prefix(single)
+    hit = model.probs_with_prefix(single, captured)
+    reference_hit = MLXDecisionModel.probs_with_prefix(model, single, reference_prefix)
+    assert float((first[0] - reference[0]).abs().max()) < 1e-4
+    assert float((hit[0] - reference_hit[0]).abs().max()) < 1e-4
+    alternate = model.encode(tok, {**rec, "questions": [rec["questions"][1]]})
+    reused = model.probs_with_prefix(alternate, captured)
+    reference_reused = MLXDecisionModel.probs_with_prefix(model, alternate, reference_prefix)
+    assert float((reused[0] - reference_reused[0]).abs().max()) < 1e-4
+    singleton = model.encode(tok, {**rec, "questions": [
+        {"instr": "Continue", "options": ["Observe the window"], "label": 0},
+    ]})
+    only, singleton_prefix = model.probs_and_prefix(singleton)
+    assert only[0].tolist() == [1.0]
+    assert model.probs_with_prefix(singleton, singleton_prefix)[0].tolist() == [1.0]
+
     # A state longer than the training context must use the full pointer head.
     restricted = tmp_path / "head-short-context.pt"
     torch.save({"head": head.state_dict(), "head_type": "pair", "layer": 16,

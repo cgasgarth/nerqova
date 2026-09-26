@@ -5,6 +5,7 @@ served temperature and records teacher agreement for exit-gate design.
 """
 
 import argparse
+import hashlib
 import json
 import math
 import random
@@ -100,6 +101,8 @@ def main():
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--learning-rate", type=float, default=2e-4)
     parser.add_argument("--teacher-weight", type=float, default=0.5)
+    parser.add_argument("--init-head", type=Path,
+                        help="initialize from a pair head trained on the same base and suite")
     parser.add_argument("--device", choices=("cpu", "mps"), default="mps")
     args = parser.parse_args()
     if args.epochs < 1 or args.batch_size < 1 or args.learning_rate <= 0 or not 0 <= args.teacher_weight <= 1:
@@ -114,6 +117,16 @@ def main():
     checkpoint = Checkpoint(args.run)
     torch.manual_seed(1827)
     head = PairHead()
+    initialization = None
+    if args.init_head:
+        source = torch.load(args.init_head, map_location="cpu", weights_only=True)
+        if (source["head_type"] != "pair" or source["layer"] != train_meta["layer"]
+                or source["train_manifest"]["base_revision"] != train_meta["base_revision"]
+                or source["train_manifest"]["suite_sha256"] != train_meta["suite_sha256"]):
+            raise ValueError("initial head has a different architecture, layer, base, or suite")
+        head.load_state_dict(source["head"])
+        initialization = {"source_sha256": hashlib.sha256(args.init_head.read_bytes()).hexdigest(),
+                          "source_checkpoint_revision": source["train_manifest"]["checkpoint_revision"]}
     device = torch.device(args.device)
     head.to(device)
     optimizer = torch.optim.AdamW(head.parameters(), lr=args.learning_rate)
@@ -153,6 +166,7 @@ def main():
             torch.save({"head": {k: v.detach().cpu() for k, v in head.state_dict().items()},
                         "head_type": "pair",
                         "layer": train_meta["layer"], "temperature": report["temperature"],
+                        "initialization": initialization,
                         "train_manifest": train_meta, "calibration_manifest": cal_meta,
                         "calibration": report}, args.out)
             offsets = np.cumsum([0] + [len(p) for p in probabilities])
